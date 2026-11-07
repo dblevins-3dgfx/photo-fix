@@ -32,7 +32,7 @@ Everything happens on the device. Photos are read from files you choose, process
 
 - **Open photos** (a button, on the empty screen and in the toolbar) opens the system file picker, which accepts several files at once. On an iPhone it offers the photo library, Files and the camera; on a Chromebook, the Files app. Google Drive is reachable from both: the iPhone's Files app lists it once the Google Drive app is installed and turned on as a location, and the Chromebook's Files app lists it beside Downloads. The app itself never talks to Google; the system's picker does.
 - On a Chromebook, photos can also be dropped onto the window, or pasted (Ctrl+V) from the clipboard.
-- **Formats:** JPEG, PNG and WebP. An iPhone's HEIC photos arrive as JPEG through the photo picker. A file the browser can't decode (HEIC from Files on a Chromebook, TIFF, RAW) is skipped with a message naming the file and saying the format isn't supported. TIFF is an open question (**Q2**).
+- **Formats:** JPEG, PNG and WebP. An iPhone's HEIC photos arrive as JPEG through the photo picker. A file the browser can't decode (HEIC from Files on a Chromebook, TIFF, RAW) is skipped with a message naming the file, saying the format isn't supported, and suggesting JPEG or PNG instead. TIFF isn't supported (Resolved questions, **Q2**).
 - **Orientation:** a photo's EXIF orientation is applied when it is decoded, so it shows the way up the camera or scanner meant.
 - **Color profiles:** the browser converts a photo with an embedded color profile (Adobe RGB, for example) to sRGB when it decodes it. All the correction works in sRGB.
 - **Bit depth:** the browser decodes every photo to 8 bits per channel, so a 16-bit PNG is corrected and saved at 8 bits.
@@ -179,15 +179,6 @@ Per-channel levels (section 4, **Auto**) set each channel's black and white poin
 | Levels and midtones | After the stretch, each channel also gets a power curve `v ^ gamma` that moves its median (over the same measured pixels) to the mean of the three channels' medians: `gamma = ln(target) / ln(median)`, clamped to 0.5 to 2; a channel with its median at 0 or 1 is left alone |
 | Both, as a choice | Auto has a **Midtones** switch, off by default |
 
-### Q2. Should TIFF files open?
-
-Many scanners save TIFF, and neither Chrome nor Safari can decode it.
-
-| Option | Behavior |
-|---|---|
-| No | TIFF is skipped with the unsupported-format message, which suggests scanning to JPEG or PNG instead |
-| Yes | A TIFF decoder library (such as UTIF.js) decodes 8- and 16-bit RGB TIFFs, uncompressed, LZW or Deflate, in the Web Worker |
-
 ### Q3. What happens to a photo too large for the device to save?
 
 See section 7, **Too large for the device**. A 600 dpi scan of a 4 x 6 print is about 8.6 million pixels and fits; an 8 x 10 at 600 dpi (28.8 million) or a 4 x 6 at 1200 dpi (34.6 million) doesn't, on an iPhone.
@@ -254,6 +245,7 @@ Open questions that have been decided, oldest first, under their permanent numbe
 | Q | Date | Question | Options tried | Decision | What changed | PR |
 |---|---|---|---|---|---|---|
 | Q7 | 2026-11-07 | How does Save all deliver several files on a Chromebook? | One download each; one zip file | **Replaced by Q8** | Neither was built. The question became Q8 (where Save puts files on a Chromebook), whose default, Chrome's Save dialog, writes Save all into one chosen folder, so a zip isn't needed. Reason: photos are kept in Google Drive, and the Save dialog can save straight into it | [#1](https://github.com/dblevins-3dgfx/photo-fix/pull/1) |
+| Q2 | 2026-11-07 | Should TIFF files open? | No; Yes, with a TIFF decoder library | **No** | TIFF is skipped with the unsupported-format message, which suggests JPEG or PNG (section 3, **Formats**). No decoder library was added. JPEG, PNG and WebP still open, since the browser decodes them all the same way at no extra cost. Reason: the scanner in use saves only JPEG | [#1](https://github.com/dblevins-3dgfx/photo-fix/pull/1) |
 
 ## 12. Known limitations
 
