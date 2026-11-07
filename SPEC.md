@@ -30,7 +30,7 @@ Everything happens on the device. Photos are read from files you choose, process
 
 ## 3. Opening photos
 
-- **Open photos** (a button, on the empty screen and in the toolbar) opens the system file picker, which accepts several files at once. On an iPhone it offers the photo library, Files and the camera; on a Chromebook, the Files app.
+- **Open photos** (a button, on the empty screen and in the toolbar) opens the system file picker, which accepts several files at once. On an iPhone it offers the photo library, Files and the camera; on a Chromebook, the Files app. Google Drive is reachable from both: the iPhone's Files app lists it once the Google Drive app is installed and turned on as a location, and the Chromebook's Files app lists it beside Downloads. The app itself never talks to Google; the system's picker does.
 - On a Chromebook, photos can also be dropped onto the window, or pasted (Ctrl+V) from the clipboard.
 - **Formats:** JPEG, PNG and WebP. An iPhone's HEIC photos arrive as JPEG through the photo picker. A file the browser can't decode (HEIC from Files on a Chromebook, TIFF, RAW) is skipped with a message naming the file and saying the format isn't supported. TIFF is an open question (**Q2**).
 - **Orientation:** a photo's EXIF orientation is applied when it is decoded, so it shows the way up the camera or scanner meant.
@@ -141,7 +141,10 @@ Cropping is an open question (**Q6**).
 - **Save** saves the current photo; **Save all** saves every open photo.
 - **What is saved:** the original at full size (or scaled down as below), with its corrections and rotation, as a JPEG at the **JPEG quality** preference (default 92), in sRGB. The file name is the original's with its extension replaced by `-fixed.jpg` (`Grandma 1962.png` becomes `Grandma 1962-fixed.jpg`); a name with no extension just gets `-fixed.jpg`. The saved format is an open question (**Q4**).
 - **Metadata:** the saved file has none (no EXIF: no date, no camera, no location). Keeping the original's date is an open question (**Q5**).
-- **Where it goes:** where the browser can share files (Safari on an iPhone), Save opens the share sheet with the file, which offers **Save Image** (to Photos), **Save to Files**, Messages and so on. Elsewhere (Chrome on a Chromebook), the file downloads to the Downloads folder. **Save all** shares all the files in one share sheet, or downloads them one after another. A single zip file is an open question (**Q7**).
+- **Where it goes:** the first of these that the browser can do (where Save puts files on a Chromebook is an open question, **Q8**):
+  1. **The Save dialog** (Chrome on a Chromebook, through the File System Access API). **Save** opens the system's Save dialog with the file name filled in. It starts in the folder used last and offers every place the Files app knows, Google Drive included. **Save all** asks for a folder once and writes every photo into it. A name already in that folder is not overwritten: the photo is saved as `<name>-fixed (2).jpg`, then `(3)` and so on. (For **Save**, the dialog itself asks before replacing a file.) Cancelling the dialog saves nothing and says nothing.
+  2. **The share sheet** (Safari on an iPhone). **Save** opens the share sheet with the file, which offers **Save Image** (to Photos), **Save to Files** (any folder in Files, Google Drive included when its app is installed), Messages and so on. **Save all** shares all the files in one share sheet.
+  3. **A download**, into the Downloads folder (other browsers). **Save all** downloads the files one after another.
 - **While saving:** the corrections are applied to the original in the Web Worker. Save and Save all show progress ("Saving 2 of 5"). The screen stays usable; settings changed during a save apply to the next save, not the one under way.
 - **Too large for the device:** each browser limits how many pixels a canvas can hold (on an iPhone, 16,777,216, which is 4096 x 4096). A photo with more pixels than the limit is scaled down, keeping its proportions, to the largest whole size under it. The status line says so after saving ("Saved at 4000 x 4194, smaller than the 4800 x 5033 scan, the most this device can save"). Keeping the full size on such a device is an open question (**Q3**).
 - **Errors:** if saving fails, the status line says which file failed; the others still save.
@@ -162,7 +165,7 @@ Kept in localStorage as one JSON object under `photo-fix.prefs`. A missing, unre
 
 ## 9. Open questions
 
-Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q8**.
+Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q9**.
 
 Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried).
 
@@ -221,12 +224,15 @@ Scanning often leaves scanner bed around the print, and several prints are often
 | Manual crop | A crop tool with handles, applied to the preview, the analysis and the save |
 | Find the prints | The app finds each print on a scan of several and opens each one as its own photo, straightened |
 
-### Q7. How does Save all deliver several files on a Chromebook?
+### Q8. Where does Save put files on a Chromebook?
+
+Both devices can open photos from Google Drive already (section 3: the iPhone's Files app lists Drive once the Google Drive app is installed; the Chromebook's Files app lists it). Saving is where they differ.
 
 | Option | Behavior |
 |---|---|
-| One download each | As in section 7. Chrome asks once whether the site may download several files |
-| One zip file | `photo-fix.zip`, holding every saved photo |
+| The Save dialog | As in section 7: **Save** asks where to put the file, Google Drive included, and **Save all** asks for a folder once |
+| Downloads | Chrome downloads to the Downloads folder, one file at a time for **Save all**; moving them to Drive is left to the Files app (or Chrome's **Ask where to save each file** setting) |
+| A Google Drive connection | A Google sign-in and Drive's own file browser inside the app, on both devices. Needs a Google Cloud project, and network requests to Google, which the Content Security Policy (section 2) would have to allow, ending the promise that the app contacts only its own site |
 
 Still to think about: dust and scratch removal; restoring a black-and-white photo's neutral tone (or a sepia one's); a histogram display; undo.
 
@@ -247,8 +253,7 @@ Open questions that have been decided, oldest first, under their permanent numbe
 
 | Q | Date | Question | Options tried | Decision | What changed | PR |
 |---|---|---|---|---|---|---|
-
-None yet.
+| Q7 | 2026-11-07 | How does Save all deliver several files on a Chromebook? | One download each; one zip file | **Replaced by Q8** | Neither was built. The question became Q8 (where Save puts files on a Chromebook), whose default, Chrome's Save dialog, writes Save all into one chosen folder, so a zip isn't needed. Reason: photos are kept in Google Drive, and the Save dialog can save straight into it | [#1](https://github.com/dblevins-3dgfx/photo-fix/pull/1) |
 
 ## 12. Known limitations
 
