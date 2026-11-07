@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* The controls: no double-tap zoom, text selection, long-press callout or
+   tap highlight, so it feels like an app. The photo handles its own
+   touches (touch-action: none on its canvas). */
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Clear of the notch, the rounded corners and the home bar when full
+   screen (viewport-fit=cover in index.html) */
+.safe-area {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* The photo area: the same mid-gray (sRGB 128) in light and dark mode */
+.photo-area {
+  background-color: rgb(128 128 128);
+}
