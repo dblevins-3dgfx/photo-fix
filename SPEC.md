@@ -139,10 +139,16 @@ Cropping is an open question (**Q6**).
 ## 7. Saving
 
 - **Save** saves the current photo; **Save all** saves every open photo.
-- **What is saved:** the original at full size (or scaled down as below), with its corrections and rotation, as a JPEG at the **JPEG quality** preference (default 92), in sRGB. The file name is the original's with its extension replaced by `-fixed.jpg` (`Grandma 1962.png` becomes `Grandma 1962-fixed.jpg`); a name with no extension just gets `-fixed.jpg`. The saved format is an open question (**Q4**).
+- **What is saved:** the original at full size (or scaled down as below), with its corrections and rotation, as a JPEG at the **JPEG quality** preference (default 92), in sRGB. The saved format is an open question (**Q4**).
+- **File name:** the original's name without its extension (a name with no extension is used whole), then:
+  - a name that doesn't end in `-fixed` or `-fixed (n)` gets `-fixed.jpg`: `Grandma 1962.png` becomes `Grandma 1962-fixed.jpg`;
+  - a name ending in `-fixed` (a photo fixed before) becomes `-fixed (2).jpg`: `Grandma 1962-fixed.jpg` becomes `Grandma 1962-fixed (2).jpg`;
+  - a name ending in `-fixed (n)` becomes `-fixed (n+1).jpg`: `Grandma 1962-fixed (2).jpg` becomes `Grandma 1962-fixed (3).jpg`.
+
+  So `-fixed` is never added twice. The ending is matched ignoring case, and the rest of the name is kept as it was. Fixing a fixed photo works, but every JPEG save loses a little quality, so fixing the original again (it never changes) gives the better result. Whether the saved photo remembers how it was fixed is an open question (**Q9**).
 - **Metadata:** the saved file has none (no EXIF: no date, no camera, no location). Keeping the original's date is an open question (**Q5**).
 - **Where it goes:** the first of these that the browser can do (where Save puts files on a Chromebook is an open question, **Q8**):
-  1. **The Save dialog** (Chrome on a Chromebook, through the File System Access API). **Save** opens the system's Save dialog with the file name filled in. It starts in the folder used last and offers every place the Files app knows, Google Drive included. **Save all** asks for a folder once and writes every photo into it. A name already in that folder is not overwritten: the photo is saved as `<name>-fixed (2).jpg`, then `(3)` and so on. (For **Save**, the dialog itself asks before replacing a file.) Cancelling the dialog saves nothing and says nothing.
+  1. **The Save dialog** (Chrome on a Chromebook, through the File System Access API). **Save** opens the system's Save dialog with the file name filled in. It starts in the folder used last and offers every place the Files app knows, Google Drive included. **Save all** asks for a folder once and writes every photo into it. A name already in that folder is not overwritten: the number goes up until the name is free (`-fixed.jpg` taken, so `-fixed (2).jpg`; `-fixed (2).jpg` taken, so `-fixed (3).jpg`), the same numbering as the file name rule above. (For **Save**, the dialog itself asks before replacing a file.) Cancelling the dialog saves nothing and says nothing.
   2. **The share sheet** (Safari on an iPhone). **Save** opens the share sheet with the file, which offers **Save Image** (to Photos), **Save to Files** (any folder in Files, Google Drive included when its app is installed), Messages and so on. **Save all** shares all the files in one share sheet.
   3. **A download**, into the Downloads folder (other browsers). **Save all** downloads the files one after another.
 - **While saving:** the corrections are applied to the original in the Web Worker. Save and Save all show progress ("Saving 2 of 5"). The screen stays usable; settings changed during a save apply to the next save, not the one under way.
@@ -165,7 +171,7 @@ Kept in localStorage as one JSON object under `photo-fix.prefs`. A missing, unre
 
 ## 9. Open questions
 
-Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q9**.
+Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q10**.
 
 Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried).
 
@@ -224,6 +230,16 @@ Both devices can open photos from Google Drive already (section 3: the iPhone's 
 | The Save dialog | As in section 7: **Save** asks where to put the file, Google Drive included, and **Save all** asks for a folder once |
 | Downloads | Chrome downloads to the Downloads folder, one file at a time for **Save all**; moving them to Drive is left to the Files app (or Chrome's **Ask where to save each file** setting) |
 | A Google Drive connection | A Google sign-in and Drive's own file browser inside the app, on both devices. Needs a Google Cloud project, and network requests to Google, which the Content Security Policy (section 2) would have to allow, ending the promise that the app contacts only its own site |
+
+### Q9. Should the saved photo remember how it was fixed?
+
+A JPEG holds one picture and no revision history, so once saved, the settings that made it are gone. Photo apps (Apple Photos, Lightroom) keep the original and the edit's settings instead, and recompute the result.
+
+| Option | Behavior |
+|---|---|
+| No | As in section 7: the saved file has no metadata |
+| Settings in the JPEG | The saved JPEG carries, in its XMP metadata (a few hundred bytes, ignored by other apps), the correction settings (section 4, **Settings**, with Auto's statistics and the White point's gains) and the original's file name. Opening a `-fixed` photo shows how it was made; with the original open too, **Start over from the original** opens the original with those settings applied, so it can be adjusted and saved again without a second JPEG loss |
+| A sidecar file | The same settings in a small file saved beside the photo (`<name>-fixed.photofix.json`). Works with any format, but it's a second file to keep with every photo, and the share sheet on an iPhone would save it to Files, not to Photos |
 
 Still to think about: dust and scratch removal; restoring a black-and-white photo's neutral tone (or a sepia one's); a histogram display; undo.
 
