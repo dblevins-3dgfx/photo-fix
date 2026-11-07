@@ -1,0 +1,197 @@
+# Checks every push to any branch and every pull request (typecheck, lint
+# and unit tests), then publishes main and pull requests to GitHub Pages
+# from the gh-pages branch (SPEC.md section 10):
+#
+#   main            -> the root:                https://<user>.github.io/photo-fix/
+#   a pull request  -> pr-preview/pr-<number>/: https://<user>.github.io/photo-fix/pr-preview/pr-<number>/
+#
+# A pull request's preview is rebuilt on each push to it, linked from one
+# comment on it (kept up to date), and removed when the pull request is
+# closed or merged. A preview build sets VITE_PREVIEW, so it keeps its own
+# preferences (seeded from the live app's, src/lib/prefs.ts) and
+# shows a "Preview #<number>" badge. A pull request from a fork gets the
+# checks but no preview (its workflow can't push here). A push to any other
+# branch is checked but not published.
+#
+# One-time setup: Settings -> Pages -> Build and deployment -> Source:
+# "Deploy from a branch", branch gh-pages, folder / (root). The first run
+# creates the branch. If it has no live app yet, a preview run builds main
+# into the root first, so switching the source never leaves the site blank.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+  publish:
+    needs: check
+    # After the checks pass (or when a pull request closes, to remove its
+    # preview): main, or a pull request from this repository
+    if: >-
+      always() &&
+      (needs.check.result == 'success' || github.event.action == 'closed') &&
+      ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+        (github.event_name != 'pull_request' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push to gh-pages
+      pull-requests: write # the preview comment
+    env:
+      PR: ${{ github.event.pull_request.number }}
+      CLOSED: ${{ github.event.action == 'closed' }}
+      BASE: /${{ github.event.repository.name }}/
+      GH_TOKEN: ${{ github.token }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout
+        if: env.CLOSED != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        if: env.CLOSED != 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build
+        if: env.CLOSED != 'true'
+        env:
+          VITE_PREVIEW_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          npm ci
+          if [ -n "$PR" ]; then
+            export BASE_PATH="${BASE}pr-preview/pr-$PR/" VITE_PREVIEW="$PR"
+          else
+            export BASE_PATH="$BASE"
+          fi
+          npm run build
+
+      - name: Check out gh-pages
+        run: |
+          SITE="$RUNNER_TEMP/site"
+          echo "SITE=$SITE" >> "$GITHUB_ENV"
+          url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$url" gh-pages > /dev/null; then
+            git clone -q --single-branch --branch gh-pages "$url" "$SITE"
+          else
+            git init -q -b gh-pages "$SITE"
+            git -C "$SITE" remote add origin "$url"
+          fi
+          # Who publishes (also for replaying a commit when a push lost a race)
+          git -C "$SITE" config user.name 'github-actions[bot]'
+          git -C "$SITE" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      # A preview run on a branch with no live app yet builds main into
+      # the root too, so switching Pages to gh-pages never leaves it blank
+      - name: Build the live app (first run only)
+        if: env.PR != '' && env.CLOSED != 'true'
+        run: |
+          [ -f "$SITE/index.html" ] && exit 0
+          git fetch -q --depth 1 origin main
+          git worktree add -q "$RUNNER_TEMP/main" FETCH_HEAD
+          cd "$RUNNER_TEMP/main"
+          # Before the first app is merged, main has nothing to build
+          [ -f package-lock.json ] || { echo "main has no app yet"; exit 0; }
+          npm ci
+          BASE_PATH="$BASE" npm run build
+          rsync -a --checksum --exclude .git --exclude pr-preview/ dist/ "$SITE/"
+
+      - name: Copy into the site
+        run: |
+          if [ -z "$PR" ]; then
+            rsync -a --checksum --delete --exclude .git --exclude pr-preview/ --exclude .nojekyll dist/ "$SITE/"
+          elif [ "$CLOSED" = true ]; then
+            rm -rf "$SITE/pr-preview/pr-$PR"
+          else
+            mkdir -p "$SITE/pr-preview/pr-$PR"
+            rsync -a --checksum --delete dist/ "$SITE/pr-preview/pr-$PR/"
+          fi
+          touch "$SITE/.nojekyll"
+
+      # Every file a page names must be there: a page whose script is
+      # missing is blank. (rsync compares contents, --checksum: by size and
+      # time alone, a rebuilt index.html, the same size with a new script
+      # hash, could be skipped when the build and the clone shared a second.)
+      - name: Check the published pages
+        if: env.CLOSED != 'true'
+        run: |
+          check() { # $1 the folder, $2 the path it is served at
+            [ -f "$1/index.html" ] || { echo "::error::$1/index.html is missing"; exit 1; }
+            for ref in $(grep -oE '(src|href)="'"$2"'[^"]+"' "$1/index.html" | sed -E 's/^(src|href)="//; s/"$//'); do
+              [ -e "$1/${ref#"$2"}" ] || { echo "::error::$1/index.html names $ref, which is missing"; exit 1; }
+            done
+            echo "ok: $1"
+          }
+          # Each run checks the part it published: the live app, or its preview
+          if [ -z "$PR" ]; then check "$SITE" "$BASE"; else check "$SITE/pr-preview/pr-$PR" "${BASE}pr-preview/pr-$PR/"; fi
+
+      # Each run changes only its own part of the site (the root, or one
+      # preview's folder), so a run that lost a race rebases and retries
+      - name: Publish
+        run: |
+          cd "$SITE"
+          git add -A
+          git diff --cached --quiet && exit 0
+          if [ -z "$PR" ]; then what="main at ${GITHUB_SHA::7}"
+          elif [ "$CLOSED" = true ]; then what="remove the preview of #$PR"
+          else what="preview of #$PR at ${HEAD_SHA::7}"; fi
+          git commit -q -m "Publish $what"
+          for attempt in 1 2 3 4; do
+            git push -q origin gh-pages && exit 0
+            sleep $((attempt * 3))
+            git pull -q --rebase origin gh-pages
+          done
+          exit 1
+
+      - name: Comment the preview's address
+        if: env.PR != ''
+        run: |
+          marker='<!-- pages-preview -->'
+          # The link changes with each push (?v=<commit>), so opening it
+          # always fetches the newest build: Pages lets a browser reuse a
+          # page it fetched for up to 10 minutes
+          url="https://${GITHUB_REPOSITORY_OWNER,,}.github.io${BASE}pr-preview/pr-$PR/?v=${HEAD_SHA::7}"
+          if [ "$CLOSED" = true ]; then
+            body=$(printf '%s\n**Preview removed:** the pull request is closed.' "$marker")
+          else
+            body=$(printf '%s\n**Preview:** %s\n\nBuilt from %s. GitHub Pages can take a minute or two to update; the link changes with each push, so it always opens the newest build. The preview keeps its own preferences, copied from the live app the first time it opens.' "$marker" "$url" "${HEAD_SHA::7}")
+          fi
+          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" > /dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" > /dev/null
+          fi

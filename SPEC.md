@@ -1,6 +1,6 @@
 # Photo Fix: Specification
 
-Status: a draft, written before any code. Nothing described here is built yet. Once code exists, this file describes the app as implemented, and the first code pull request replaces this note with a list of where each part lives. Decisions still to be made are listed under [Open questions](#9-open-questions), each with the option the first version builds. Decided questions go under [Resolved questions](#11-resolved-questions).
+Status: the first version. This describes the app as implemented: the screen in `src/App.tsx` and `src/ui/` (the photo area in `PhotoView.tsx`, the controls in `Controls.tsx`, the strip in `Strip.tsx`, the Preferences dialog in `Preferences.tsx`), opening a photo in `src/photo.ts`, saving in `src/save.ts` with the full-size work in the Web Worker `src/render-worker.ts`, the preferences in localStorage in `src/storage.ts`, and the service worker in `src/service-worker.js`. The rules live in plain, unit-tested functions in `src/lib/`: the settings in `settings.ts`, the open photos and what the controls do to them in `photos.ts`, Auto's statistics in `levels.ts`, the corrections in `correction.ts`, the White point in `white-point.ts`, rotation in `rotation.ts`, sizes and the device's limit in `sizes.ts`, file names in `filename.ts`, where a save goes in `save-method.ts`, the keyboard in `keyboard.ts`, the status line's words in `messages.ts`, the preferences in `prefs.ts`, the Content Security Policy in `csp.ts` and what the service worker caches in `precache.ts`. Decisions still to be made are listed under [Open questions](#9-open-questions), each with the option the first version builds. Decided questions go under [Resolved questions](#11-resolved-questions).
 
 ## 1. Overview
 
@@ -21,11 +21,11 @@ Everything happens on the device. Photos are read from files you choose, process
 | Checks | `npm run typecheck` (tsc), `npm run lint` (oxlint, warnings are errors), `npm test` |
 | Persistence | Preferences only, in localStorage under keys starting `photo-fix.` (section 8). Photos are never stored |
 | Home screen | Installable: `public/manifest.webmanifest` names it Photo Fix and opens it full screen (`standalone`), with 192 and 512 px icons; `index.html` adds Apple's tags (180 x 180 `apple-touch-icon.png`, full-screen capable, the title, status bar style). On an iPhone: Safari, Share, Add to Home Screen. Opened from the home screen it keeps its own storage, separate from Safari's |
-| Offline | A service worker caches the app's files on the first visit, so later visits open without the network. A new version is picked up on the next visit after it is published |
+| Offline | A service worker (`sw.js`, beside the page, so a preview's covers only its own folder) caches every published file on the first visit; the build writes the list into it. Later visits open without the network: the page is fetched from the network first and from the cache when offline, everything else from the cache. A new version is picked up on the next visit after it is published, and the old version's cache is then deleted |
 | Touch | The page reaches under the notch and home bar (`viewport-fit=cover`) and pads itself back in by the safe-area insets. Double-tap zoom, text selection, the long-press callout and the tap highlight are turned off on the controls (not on the photo, which handles its own touches) |
 | Security | A Content Security Policy in a `<meta>` tag in the built `index.html` (GitHub Pages can't send it as a header) lets the page load and contact nothing but its own site, so the browser itself enforces that photos never leave the device (section 8). The policy is `contentSecurityPolicy()` in `src/lib/csp.ts`, added by the build: `default-src 'self'`; `script-src 'self'` (no inline scripts, no `eval`); `style-src 'self' 'unsafe-inline'` (React writes style attributes, such as a slider's position); `img-src 'self' blob: data:` (previews and thumbnails are drawn from blobs); `worker-src 'self'` (the Web Worker and the service worker); `connect-src 'self'`; `manifest-src 'self'`; `object-src 'none'`; `base-uri 'self'`; `form-action 'none'`. The build fails if the built `index.html` has an inline script, which the policy would block. The dev server (`npm run dev`) runs without it, since Vite's hot reload uses inline scripts |
 | Light and dark | The controls follow the device's light or dark setting (`prefers-color-scheme`) and switch at once when it changes; nothing is stored. The photo area is the same mid-gray (sRGB 128, 128, 128) in both, so the backdrop never changes how a photo's colors look. The theme color (the iPhone's status bar, Chrome's title bar) follows too |
-| Publishing | GitHub Pages, from the `gh-pages` branch, by `.github/workflows/deploy.yml` (section 10) |
+| Publishing | GitHub Pages, from the `gh-pages` branch, by `.github/workflows/deploy.yml` (section 10), on Node.js 22 |
 | Dependency updates | Dependabot, weekly, for the GitHub Actions the workflow uses |
 
 ## 3. Opening photos
@@ -36,12 +36,13 @@ Everything happens on the device. Photos are read from files you choose, process
 - **Orientation:** a photo's EXIF orientation is applied when it is decoded, so it shows the way up the camera or scanner meant.
 - **Color profiles:** the browser converts a photo with an embedded color profile (Adobe RGB, for example) to sRGB when it decodes it. All the correction works in sRGB.
 - **Bit depth:** the browser decodes every photo to 8 bits per channel, so a 16-bit PNG is corrected and saved at 8 bits.
-- Opening more photos adds them to the ones already open, after them. Each photo is listed by its file name.
+- Opening more photos adds them to the ones already open, after them. Each photo is listed by its file name (a pasted photo with no name is called `Pasted photo.png`). With none open, the first one opened becomes current.
 - When a photo is opened, its settings start at the defaults (section 4, **Settings**), with **Auto** on or off according to the **Auto on for new photos** preference (section 8).
 
 ### Sizes
 
-- Each open photo keeps three sizes: the **original** at full size (kept as the decoded bitmap), the **analysis image**, the photo scaled so its longer side is at most 1024 px (never scaled up), and the **preview**, scaled to fit the photo area at the screen's pixel density, at most 2048 px on the longer side.
+- Each open photo keeps three sizes: the **original** at full size (kept as the file it came from, and decoded again when saving, so a dozen open scans don't fill an iPhone's memory), the **analysis image**, the photo scaled so its longer side is at most 1024 px (never scaled up), and the **preview**, scaled to fit the photo area at the screen's pixel density, at most 2048 px on the longer side.
+- A thumbnail for the strip (section 5), at most 160 px on the longer side and without corrections, is made at the same time.
 - Auto's statistics and the white point's sample are always taken from the analysis image, never from the preview or the original, so they don't depend on the screen and the preview shows exactly the correction that is saved (rule: **Same correction everywhere**, section 4).
 - A photo larger than the device can handle in one canvas is an open question (**Q3**). The first version scales such a photo down when saving and says so (section 7).
 
@@ -121,13 +122,14 @@ Each photo has its own settings, kept in memory while it is open:
 
 - **Empty:** with no photo open, the screen shows the app's name, one line saying what it does and that photos stay on the device, and a large **Open photos** button. On a Chromebook it also says photos can be dropped or pasted.
 - **Photo area:** the current photo's preview, corrected, fitted to the area without cropping, on a mid-gray background (so neither white nor black borders fool the eye).
-- **Compare:** pressing and holding on the photo (or holding **Compare**, or the backslash key on a keyboard) shows the photo without corrections, rotation kept, until released. A short tap does nothing unless the eyedropper is armed.
+- **Compare:** pressing and holding on the photo for a third of a second (or holding **Compare**, or the backslash key on a keyboard) shows the photo without corrections, rotation kept, until released. A short tap does nothing unless the eyedropper is armed. Changing photos disarms the eyedropper.
 - **Controls:** **Auto** (switch) with its **Strength** slider; **White point** and **Clear**; the five sliders; **Rotate left** and **Rotate right**; **Reset**; **Apply to all** (shown with two or more photos); **Save** and **Save all** (section 7). Every change shows in the preview at once; the preview is redrawn from the tables, so dragging a slider stays smooth.
-- **Status line:** one line under the photo for what the eyedropper wants, errors (a file that couldn't be opened, a refused sample) and save results. A message stays until the next one or until the photo changes.
+- **Status line:** one line under the photo for what the eyedropper wants, errors (a file that couldn't be opened, a refused sample), save progress and save results. A message stays until the next one or until the photo changes. Files that couldn't be opened are named together ("2 files couldn't be opened (a.tif, b.heic): their format isn't supported. Try JPEG or PNG instead."); with no photo open, the message shows under **Open photos**.
+- **Header:** the app's name, **Open photos** (once a photo is open) and **Preferences** (⚙). A preview build adds its badge (section 10).
 - **Several photos:** a strip of thumbnails shows every open photo in the order opened; tapping one makes it current. Each has a small × to close it (its work is lost; there is no confirmation, because nothing is lost from the original file). The current one is outlined.
 - **Layout:** in a window at least 900 px wide (a Chromebook, an iPad in landscape), the controls sit in a panel to the right of the photo and the strip runs along the bottom. On a narrower screen (an iPhone), the photo is on top, the strip below it, and the controls in a panel below that, which scrolls on its own so the photo stays in view.
-- **Keyboard** (Chromebook): Ctrl+O opens photos, Ctrl+S saves the current photo, left and right arrows move between photos, `[` and `]` rotate, `W` arms the eyedropper, Escape disarms it, backslash compares.
-- **Preferences** (a ⚙ button) opens a dialog with the settings in section 8.
+- **Keyboard** (Chromebook): Ctrl+O opens photos, Ctrl+S saves the current photo, left and right arrows move between photos, `[` and `]` rotate, `W` arms the eyedropper (and disarms it), Escape disarms it, backslash compares. While a slider or another control has the focus, only Ctrl+O, Ctrl+S and Escape are shortcuts, so the arrows move the slider.
+- **Preferences** (a ⚙ button) opens a dialog with the settings in section 8. **Done**, Escape or a tap outside it closes it.
 
 ## 6. Rotation
 
@@ -149,11 +151,12 @@ Cropping is an open question (**Q6**).
 - **Metadata:** the saved file has none (no EXIF: no date, no camera, no location). Keeping the original's date is an open question (**Q5**).
 - **Where it goes:** the first of these that the browser can do (where Save puts files on a Chromebook is an open question, **Q8**):
   1. **The Save dialog** (Chrome on a Chromebook, through the File System Access API). **Save** opens the system's Save dialog with the file name filled in. It starts in the folder used last and offers every place the Files app knows, Google Drive included. **Save all** asks for a folder once and writes every photo into it. A name already in that folder is not overwritten: the number goes up until the name is free (`-fixed.jpg` taken, so `-fixed (2).jpg`; `-fixed (2).jpg` taken, so `-fixed (3).jpg`), the same numbering as the file name rule above. (For **Save**, the dialog itself asks before replacing a file.) Cancelling the dialog saves nothing and says nothing.
-  2. **The share sheet** (Safari on an iPhone). **Save** opens the share sheet with the file, which offers **Save Image** (to Photos), **Save to Files** (any folder in Files, Google Drive included when its app is installed), Messages and so on. **Save all** shares all the files in one share sheet.
+  2. **The share sheet** (Safari on an iPhone). **Save** opens the share sheet with the file, which offers **Save Image** (to Photos), **Save to Files** (any folder in Files, Google Drive included when its app is installed), Messages and so on. **Save all** shares all the files in one share sheet. Safari opens the share sheet only soon after a tap, and making the files can take longer; when Safari refuses, the status line says "Ready to save. Tap Share" (or "3 photos ready to save. Tap Share") with a **Share** button, which opens it. Closing the share sheet without choosing saves nothing and says nothing.
   3. **A download**, into the Downloads folder (other browsers). **Save all** downloads the files one after another.
 - **While saving:** the corrections are applied to the original in the Web Worker. Save and Save all show progress ("Saving 2 of 5"). The screen stays usable; settings changed during a save apply to the next save, not the one under way.
 - **Too large for the device:** each browser limits how many pixels a canvas can hold (on an iPhone, 16,777,216, which is 4096 x 4096). A photo with more pixels than the limit is scaled down, keeping its proportions, to the largest whole size under it. The status line says so after saving ("Saved at 4000 x 4194, smaller than the 4800 x 5033 scan, the most this device can save"). Keeping the full size on such a device is an open question (**Q3**).
-- **Errors:** if saving fails, the status line says which file failed; the others still save.
+- **When it's done:** the status line names the file saved ("Saved Grandma 1962-fixed.jpg") or, for Save all, how many ("Saved 5 photos"), adding how many were saved smaller than their scans, if any.
+- **Errors:** if saving fails, the status line says which file failed ("Couldn't save Grandma 1962-fixed.jpg"), ahead of what was saved; the others still save.
 - The open photos and their settings are kept after saving.
 
 ## 8. Preferences
@@ -250,7 +253,7 @@ Still to think about: dust and scratch removal; restoring a black-and-white phot
 - **`main`** is the live app: `https://dblevins-3dgfx.github.io/photo-fix/`.
 - **Each pull request** from this repository gets a preview at `https://dblevins-3dgfx.github.io/photo-fix/pr-preview/pr-<number>/`, linked from one comment on the pull request that is kept up to date. The link changes with each push (`?v=<commit>`) so it always opens the newest build. Each push rebuilds the preview; closing or merging the pull request removes it. A pull request from a fork gets the checks but no preview.
 - **A preview build** shows a small **Preview #<number>** badge linking to the pull request, and keeps its own preferences under `photo-fix.preview.<number>.prefs`, copied once from the live app's the first time it opens, so trying a change never alters the live app's preferences. Its service worker is scoped to its own folder.
-- The first preview run on a `gh-pages` branch with no live app yet also builds `main` into the root, so the live site never goes blank.
+- The first preview run on a `gh-pages` branch with no live app yet also builds `main` into the root, so the live site never goes blank. (Until `main` has an app, there is nothing to build, and the root stays empty.)
 - Every file the published `index.html` names must exist, or the run fails.
 - One-time setup: repository **Settings → Pages → Build and deployment → Source: Deploy from a branch**, branch `gh-pages`, folder `/ (root)`.
 
@@ -270,3 +273,4 @@ Open questions that have been decided, oldest first, under their permanent numbe
 - 8 bits per channel throughout (section 3, **Bit depth**).
 - The saved JPEG carries no color profile; it is in sRGB, which is what every phone, browser and photo app assumes.
 - No dust, scratch or tear repair, no sharpening and no noise reduction.
+- So far tried only in Chrome on a computer (including an emulated phone screen), not yet on a physical iPhone or Chromebook. The share sheet, the Save dialog and Safari's canvas limit have not been tried for real.

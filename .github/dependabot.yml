@@ -1,0 +1,10 @@
+# Keeps the GitHub Actions the workflow uses up to date (SPEC.md section 2)
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
