@@ -7,7 +7,7 @@
 import type { RenderRequest, RenderResult } from './render-worker';
 import { fixedName, freeName } from './lib/filename';
 import type { SaveOutcome } from './lib/messages';
-import { saveMethod } from './lib/save-method';
+import { saveMethod, type SaveMethod } from './lib/save-method';
 import { canvasPixelLimit } from './lib/sizes';
 import type { Photo } from './photo';
 
@@ -74,12 +74,13 @@ export async function share(files: File[]): Promise<'shared' | 'cancelled' | 'ne
 
 export interface SaveResult {
   outcome: SaveOutcome;
-  // Rendered files the share sheet refused without a fresh tap
+  // Rendered files the share sheet refused without a fresh tap. `outcome`
+  // holds the rest (failures, sizes) for after they are shared.
   pendingShare?: File[];
   cancelled?: boolean;
 }
 
-const emptyOutcome = (): SaveOutcome => ({ saved: [], failed: [], smaller: [] });
+const emptyOutcome = (method: SaveMethod): SaveOutcome => ({ method, saved: [], failed: [], smaller: [] });
 
 // Saves `photos` (one for Save, all for Save all), reporting progress
 export async function savePhotos(
@@ -87,7 +88,7 @@ export async function savePhotos(
 ): Promise<SaveResult> {
   const all = photos.length > 1;
   const method = saveMethod(abilities(), all);
-  const outcome = emptyOutcome();
+  const outcome = emptyOutcome(method);
 
   // The Save dialog: ask where first
   let fileHandle: FileSystemFileHandle | null = null;

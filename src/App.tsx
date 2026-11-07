@@ -32,7 +32,7 @@ export default function App() {
   const [armed, setArmed] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
-  const [pendingShare, setPendingShare] = useState<File[] | null>(null);
+  const [pendingShare, setPendingShare] = useState<{ files: File[]; outcome: words.SaveOutcome } | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const photo = state.current >= 0 ? state.photos[state.current] : null;
@@ -98,7 +98,7 @@ export default function App() {
     try {
       const result = await savePhotos(photos, prefs.jpegQuality, (n, total) => setProgress(words.saving(n, total)));
       if (result.pendingShare) {
-        setPendingShare(result.pendingShare);
+        setPendingShare({ files: result.pendingShare, outcome: result.outcome });
         setMessage(words.readyToShare(result.pendingShare.length));
       } else if (!result.cancelled) {
         setMessage(words.saveResult(result.outcome));
@@ -112,11 +112,11 @@ export default function App() {
 
   const shareNow = async () => {
     if (!pendingShare) return;
-    const files = pendingShare;
+    const { files, outcome } = pendingShare;
     setPendingShare(null);
     try {
       const r = await share(files);
-      setMessage(r === 'shared' ? words.saved(files.map((f) => f.name)) : null);
+      setMessage(r === 'shared' ? words.saveResult({ ...outcome, saved: [...outcome.saved, ...files.map((f) => f.name)] }) : null);
     } catch {
       setMessage(words.saveFailed(files.map((f) => f.name)));
     }
@@ -220,14 +220,17 @@ export default function App() {
         </main>
       ) : (
         <main className="flex min-h-0 flex-1 flex-col min-[900px]:grid min-[900px]:grid-cols-[1fr_20rem] min-[900px]:grid-rows-[1fr_auto]">
-          <section className="flex h-[45dvh] shrink-0 flex-col min-[900px]:h-auto min-[900px]:min-h-0">
-            <div className="photo-area flex min-h-0 flex-1 items-center justify-center p-2">
+          <section className="flex shrink-0 flex-col min-[900px]:min-h-0">
+            {/* On a narrow screen the photo keeps its height, and a long
+                message pushes the strip and controls down */}
+            <div className="photo-area flex h-[42dvh] shrink-0 items-center justify-center p-2 min-[900px]:h-auto min-[900px]:min-h-0 min-[900px]:flex-1 min-[900px]:shrink">
               <PhotoView photo={photo} comparing={comparing} armed={armed} onTap={sample} onHold={setComparing} />
             </div>
+            {/* The status line wraps, so a long message is never cut off */}
             <div className="flex min-h-8 items-center gap-3 px-3 py-1 text-sm" aria-live="polite">
-              <span className="truncate">{progress ?? message ?? ''}</span>
+              <span className="min-w-0 flex-1 break-words">{progress ?? message ?? ''}</span>
               {pendingShare && !progress && (
-                <button type="button" onClick={shareNow} className="rounded-lg bg-sky-600 px-3 py-1 text-white">Share</button>
+                <button type="button" onClick={shareNow} className="shrink-0 rounded-lg bg-sky-600 px-3 py-1 text-white">Share</button>
               )}
             </div>
           </section>
