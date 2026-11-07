@@ -122,6 +122,8 @@ jobs:
           git fetch -q --depth 1 origin main
           git worktree add -q "$RUNNER_TEMP/main" FETCH_HEAD
           cd "$RUNNER_TEMP/main"
+          # Before the first app is merged, main has nothing to build
+          [ -f package-lock.json ] || { echo "main has no app yet"; exit 0; }
           npm ci
           BASE_PATH="$BASE" npm run build
           rsync -a --checksum --exclude .git --exclude pr-preview/ dist/ "$SITE/"

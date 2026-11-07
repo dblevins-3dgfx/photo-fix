@@ -253,7 +253,7 @@ Still to think about: dust and scratch removal; restoring a black-and-white phot
 - **`main`** is the live app: `https://dblevins-3dgfx.github.io/photo-fix/`.
 - **Each pull request** from this repository gets a preview at `https://dblevins-3dgfx.github.io/photo-fix/pr-preview/pr-<number>/`, linked from one comment on the pull request that is kept up to date. The link changes with each push (`?v=<commit>`) so it always opens the newest build. Each push rebuilds the preview; closing or merging the pull request removes it. A pull request from a fork gets the checks but no preview.
 - **A preview build** shows a small **Preview #<number>** badge linking to the pull request, and keeps its own preferences under `photo-fix.preview.<number>.prefs`, copied once from the live app's the first time it opens, so trying a change never alters the live app's preferences. Its service worker is scoped to its own folder.
-- The first preview run on a `gh-pages` branch with no live app yet also builds `main` into the root, so the live site never goes blank.
+- The first preview run on a `gh-pages` branch with no live app yet also builds `main` into the root, so the live site never goes blank. (Until `main` has an app, there is nothing to build, and the root stays empty.)
 - Every file the published `index.html` names must exist, or the run fails.
 - One-time setup: repository **Settings → Pages → Build and deployment → Source: Deploy from a branch**, branch `gh-pages`, folder `/ (root)`.
 
