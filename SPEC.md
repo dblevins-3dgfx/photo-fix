@@ -23,6 +23,8 @@ Everything happens on the device. Photos are read from files you choose, process
 | Home screen | Installable: `public/manifest.webmanifest` names it Photo Fix and opens it full screen (`standalone`), with 192 and 512 px icons; `index.html` adds Apple's tags (180 x 180 `apple-touch-icon.png`, full-screen capable, the title, status bar style). On an iPhone: Safari, Share, Add to Home Screen. Opened from the home screen it keeps its own storage, separate from Safari's |
 | Offline | A service worker caches the app's files on the first visit, so later visits open without the network. A new version is picked up on the next visit after it is published |
 | Touch | The page reaches under the notch and home bar (`viewport-fit=cover`) and pads itself back in by the safe-area insets. Double-tap zoom, text selection, the long-press callout and the tap highlight are turned off on the controls (not on the photo, which handles its own touches) |
+| Security | A Content Security Policy in a `<meta>` tag in the built `index.html` (GitHub Pages can't send it as a header) lets the page load and contact nothing but its own site, so the browser itself enforces that photos never leave the device (section 8). The policy is `contentSecurityPolicy()` in `src/lib/csp.ts`, added by the build: `default-src 'self'`; `script-src 'self'` (no inline scripts, no `eval`); `style-src 'self' 'unsafe-inline'` (React writes style attributes, such as a slider's position); `img-src 'self' blob: data:` (previews and thumbnails are drawn from blobs); `worker-src 'self'` (the Web Worker and the service worker); `connect-src 'self'`; `manifest-src 'self'`; `object-src 'none'`; `base-uri 'self'`; `form-action 'none'`. The build fails if the built `index.html` has an inline script, which the policy would block. The dev server (`npm run dev`) runs without it, since Vite's hot reload uses inline scripts |
+| Light and dark | The controls follow the device's light or dark setting (`prefers-color-scheme`) and switch at once when it changes; nothing is stored. The photo area is the same mid-gray (sRGB 128, 128, 128) in both, so the backdrop never changes how a photo's colors look. The theme color (the iPhone's status bar, Chrome's title bar) follows too |
 | Publishing | GitHub Pages, from the `gh-pages` branch, by `.github/workflows/deploy.yml` (section 10) |
 | Dependency updates | Dependabot, weekly, for the GitHub Actions the workflow uses |
 
@@ -156,7 +158,7 @@ Kept in localStorage as one JSON object under `photo-fix.prefs`. A missing, unre
 
 - A change applies at once: the JPEG quality to the next save, Auto on for new photos to the next photo opened (not to photos already open).
 - The photos, their settings and the open list are never stored. Closing or reloading the page closes every photo (Known limitations).
-- Nothing is sent anywhere: once the app has loaded, it makes no network requests except to update itself.
+- Nothing is sent anywhere: once the app has loaded, it makes no network requests except to its own site, to update itself. The Content Security Policy (section 2, **Security**) blocks any other.
 
 ## 9. Open questions
 
@@ -230,7 +232,8 @@ Still to think about: dust and scratch removal; restoring a black-and-white phot
 
 ## 10. Publishing
 
-- `.github/workflows/deploy.yml` runs on every pull request and every push to `main`. It installs, then runs the typecheck, the linter and the unit tests. When they pass, it builds and publishes to GitHub Pages from the `gh-pages` branch.
+- **Checks:** `.github/workflows/deploy.yml` runs the typecheck, the linter and the unit tests on every push to any branch, so a failure shows before a pull request is opened, and on every pull request, including one from a fork. Nothing is published unless they pass.
+- **Publishing:** after the checks pass on `main` or on a pull request from this repository, it builds and publishes to GitHub Pages from the `gh-pages` branch. A push to another branch is checked but not published.
 - **`main`** is the live app: `https://dblevins-3dgfx.github.io/photo-fix/`.
 - **Each pull request** from this repository gets a preview at `https://dblevins-3dgfx.github.io/photo-fix/pr-preview/pr-<number>/`, linked from one comment on the pull request that is kept up to date. The link changes with each push (`?v=<commit>`) so it always opens the newest build. Each push rebuilds the preview; closing or merging the pull request removes it. A pull request from a fork gets the checks but no preview.
 - **A preview build** shows a small **Preview #<number>** badge linking to the pull request, and keeps its own preferences under `photo-fix.preview.<number>.prefs`, copied once from the live app's the first time it opens, so trying a change never alters the live app's preferences. Its service worker is scoped to its own folder.
