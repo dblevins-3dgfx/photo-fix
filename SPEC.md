@@ -199,7 +199,7 @@ Kept in localStorage as one JSON object under `photo-fix.prefs`. A missing, unre
 
 Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q11**.
 
-Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried).
+Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried). A question's **Depends on** note names the refactor issue that should land first, to make its other options smaller changes.
 
 ### Q3. What happens to a photo too large for the device to save?
 
@@ -210,6 +210,8 @@ See section 7, **Too large for the device**. A 600 dpi scan of a 4 x 6 print is 
 | Scale it down | As in section 7, with the message |
 | Keep the full size | The worker corrects the photo in strips of rows and encodes the JPEG itself with a JavaScript encoder, so no canvas holds the whole photo. Slower, and decoding a very large photo can still fail on an iPhone |
 
+**Depends on:** [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10). Keeping the full size replaces the save job's render and encode steps with versions that work in strips of rows.
+
 ### Q4. What format are photos saved in?
 
 | Option | Behavior |
@@ -217,6 +219,8 @@ See section 7, **Too large for the device**. A 600 dpi scan of a 4 x 6 print is 
 | Always JPEG | As in section 7 |
 | Same as the original | A PNG is saved as PNG (larger, lossless), a JPEG or WebP as JPEG |
 | A preference | **Save as**: JPEG or PNG |
+
+**Depends on:** [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10). Another format changes only the save job's encode step (and the file name's extension). As a preference, it also depends on [#11](https://github.com/dblevins-3dgfx/photo-fix/issues/11), where a preference is one entry in the table of preferences.
 
 ### Q5. Should the saved file keep the original's date?
 
@@ -226,6 +230,8 @@ Scanned files rarely carry a useful date, but a photo from the iPhone's library 
 |---|---|
 | No metadata | As in section 7 |
 | Copy the date | The original's EXIF date taken (and only that) is written into the saved JPEG |
+
+**Depends on:** [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10). Copying the date is a metadata step in the save job, with the EXIF reading and writing in a plain, tested module.
 
 ### Q6. Should Photo Fix crop?
 
@@ -237,6 +243,8 @@ Scanning often leaves scanner bed around the print, and several prints are often
 | Manual crop | A crop tool with handles, applied to the preview, the analysis and the save |
 | Find the prints | The app finds each print on a scan of several and opens each one as its own photo, straightened |
 
+**Depends on:** [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10), in part. A crop is a new per-photo setting (the test helpers keep that to one place) and brings its own shortcuts (`useShortcut`). It also changes where Auto measures, drawing, the tap mapping, zoom and saving, whatever the architecture.
+
 ### Q8. Where does Save put files on a Chromebook?
 
 Both devices can open photos from Google Drive already (section 3: the iPhone's Files app lists Drive once the Google Drive app is installed; the Chromebook's Files app lists it). Saving is where they differ.
@@ -247,6 +255,8 @@ Both devices can open photos from Google Drive already (section 3: the iPhone's 
 | Downloads | Chrome downloads to the Downloads folder, one file at a time for **Save all**; moving them to Drive is left to the Files app (or Chrome's **Ask where to save each file** setting) |
 | A Google Drive connection | A Google sign-in and Drive's own file browser inside the app, on both devices. Needs a Google Cloud project, and network requests to Google, which the Content Security Policy (section 2) would have to allow, ending the promise that the app contacts only its own site |
 
+**Depends on:** nothing, while the Save dialog stays. A Google Drive connection would be a large change of its own, outside both refactors.
+
 ### Q9. Should the saved photo remember how it was fixed?
 
 A JPEG holds one picture and no revision history, so once saved, the settings that made it are gone. Photo apps (Apple Photos, Lightroom) keep the original and the edit's settings instead, and recompute the result.
@@ -256,6 +266,8 @@ A JPEG holds one picture and no revision history, so once saved, the settings th
 | No | As in section 7: the saved file has no metadata |
 | Settings in the JPEG | The saved JPEG carries, in its XMP metadata (a few hundred bytes, ignored by other apps), the correction settings (section 4, **Settings**, with Auto's statistics and the White point's gains) and the original's file name. Opening a `-fixed` photo shows how it was made; with the original open too, **Start over from the original** opens the original with those settings applied, so it can be adjusted and saved again without a second JPEG loss |
 | A sidecar file | The same settings in a small file saved beside the photo (`<name>-fixed.photofix.json`). Works with any format, but it's a second file to keep with every photo, and the share sheet on an iPhone would save it to Files, not to Photos |
+
+**Depends on:** [#11](https://github.com/dblevins-3dgfx/photo-fix/issues/11) most: the table of adjustments says which settings to write, and how to check each when reading them back. Also [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10): writing them is a metadata step in the save job, and **Start over from the original** lives with opening photos (`useOpenPhotos`).
 
 ### Q10. When zoomed in, where does the White point sample?
 
@@ -268,6 +280,8 @@ Zoomed in (section 5, **Zoom and pan**), a tap lands far more precisely than the
 | A fingertip on the screen | A block of the original covering about 10 x 10 CSS pixels of the screen round the tap, after Auto: about the analysis image's block at Fit, and a smaller, more precise spot the further you zoom in |
 
 The other two options take the sample from the original, not the analysis image, which changes the rule in section 3 (**Sizes**) that the sample always comes from the analysis image.
+
+**Depends on:** [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10). Sampling the original is a new worker job, and sampling moves out of `App.tsx` along with it.
 
 Still to think about: dust and scratch removal; restoring a black-and-white photo's neutral tone (or a sepia one's); a histogram display; undo.
 
