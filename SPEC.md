@@ -199,9 +199,11 @@ Kept in localStorage as one JSON object under `photo-fix.prefs`. A missing, unre
 
 Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q11**.
 
-Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried). A question's **Depends on** note names the refactor issue that should land first, to make its other options smaller changes.
+Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried). A question's **Depends on** note names the refactor issue that should land first, to make its other options smaller changes. Each question also has an issue of its own, linked under its heading, for discussing it.
 
 ### Q3. What happens to a photo too large for the device to save?
+
+Issue: [#13](https://github.com/dblevins-3dgfx/photo-fix/issues/13)
 
 See section 7, **Too large for the device**. A 600 dpi scan of a 4 x 6 print is about 8.6 million pixels and fits; an 8 x 10 at 600 dpi (28.8 million) or a 4 x 6 at 1200 dpi (34.6 million) doesn't, on an iPhone.
 
@@ -214,6 +216,8 @@ See section 7, **Too large for the device**. A 600 dpi scan of a 4 x 6 print is 
 
 ### Q4. What format are photos saved in?
 
+Issue: [#14](https://github.com/dblevins-3dgfx/photo-fix/issues/14)
+
 | Option | Behavior |
 |---|---|
 | Always JPEG | As in section 7 |
@@ -223,6 +227,8 @@ See section 7, **Too large for the device**. A 600 dpi scan of a 4 x 6 print is 
 **Depends on:** [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10). Another format changes only the save job's encode step (and the file name's extension). As a preference, it also depends on [#11](https://github.com/dblevins-3dgfx/photo-fix/issues/11), where a preference is one entry in the table of preferences.
 
 ### Q5. Should the saved file keep the original's date?
+
+Issue: [#15](https://github.com/dblevins-3dgfx/photo-fix/issues/15)
 
 Scanned files rarely carry a useful date, but a photo from the iPhone's library (a scan made with the camera, say) does, and Photos sorts by it.
 
@@ -234,6 +240,8 @@ Scanned files rarely carry a useful date, but a photo from the iPhone's library 
 **Depends on:** [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10). Copying the date is a metadata step in the save job, with the EXIF reading and writing in a plain, tested module.
 
 ### Q6. Should Photo Fix crop?
+
+Issue: [#16](https://github.com/dblevins-3dgfx/photo-fix/issues/16)
 
 Scanning often leaves scanner bed around the print, and several prints are often scanned at once.
 
@@ -247,6 +255,8 @@ Scanning often leaves scanner bed around the print, and several prints are often
 
 ### Q8. Where does Save put files on a Chromebook?
 
+Issue: [#17](https://github.com/dblevins-3dgfx/photo-fix/issues/17)
+
 Both devices can open photos from Google Drive already (section 3: the iPhone's Files app lists Drive once the Google Drive app is installed; the Chromebook's Files app lists it). Saving is where they differ.
 
 | Option | Behavior |
@@ -259,6 +269,8 @@ Both devices can open photos from Google Drive already (section 3: the iPhone's 
 
 ### Q9. Should the saved photo remember how it was fixed?
 
+Issue: [#18](https://github.com/dblevins-3dgfx/photo-fix/issues/18)
+
 A JPEG holds one picture and no revision history, so once saved, the settings that made it are gone. Photo apps (Apple Photos, Lightroom) keep the original and the edit's settings instead, and recompute the result.
 
 | Option | Behavior |
@@ -270,6 +282,8 @@ A JPEG holds one picture and no revision history, so once saved, the settings th
 **Depends on:** [#11](https://github.com/dblevins-3dgfx/photo-fix/issues/11) most: the table of adjustments says which settings to write, and how to check each when reading them back. Also [#10](https://github.com/dblevins-3dgfx/photo-fix/issues/10): writing them is a metadata step in the save job, and **Start over from the original** lives with opening photos (`useOpenPhotos`).
 
 ### Q10. When zoomed in, where does the White point sample?
+
+Issue: [#19](https://github.com/dblevins-3dgfx/photo-fix/issues/19)
 
 Zoomed in (section 5, **Zoom and pan**), a tap lands far more precisely than the 5 x 5 block of the 1024 px analysis image it samples (section 4, **White point**): on a 600 dpi scan of a 6 x 4 print, that block covers about 18 pixels of the original each way, about 1/35 of an inch, whatever the zoom.
 
