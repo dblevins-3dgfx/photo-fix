@@ -1,7 +1,8 @@
 // The keyboard (SPEC.md section 5, Keyboard)
 
 export type KeyAction =
-  | 'open' | 'save' | 'previous' | 'next' | 'rotate-left' | 'rotate-right' | 'eyedropper' | 'disarm' | 'compare';
+  | 'open' | 'save' | 'previous' | 'next' | 'rotate-left' | 'rotate-right' | 'eyedropper' | 'disarm' | 'compare'
+  | 'zoom-in' | 'zoom-out' | 'zoom-fit';
 
 export interface KeyPress {
   key: string;
@@ -29,6 +30,10 @@ export function keyAction(k: KeyPress): KeyAction | null {
     case ']': return 'rotate-right';
     case 'w': case 'W': return 'eyedropper';
     case '\\': return 'compare';
+    // Zoom (section 5, Zoom and pan): + (or = unshifted), - and 0
+    case '+': case '=': return 'zoom-in';
+    case '-': return 'zoom-out';
+    case '0': return 'zoom-fit';
     default: return null;
   }
 }

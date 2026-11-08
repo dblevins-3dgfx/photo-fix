@@ -1,6 +1,6 @@
 # Photo Fix: Specification
 
-Status: the first version. This describes the app as implemented: the screen in `src/App.tsx` and `src/ui/` (the photo area in `PhotoView.tsx`, the controls in `Controls.tsx`, the strip in `Strip.tsx`, the Preferences dialog in `Preferences.tsx`), opening a photo in `src/photo.ts`, saving in `src/save.ts` with the full-size work in the Web Worker `src/render-worker.ts`, the preferences in localStorage in `src/storage.ts`, and the service worker in `src/service-worker.js`. The rules live in plain, unit-tested functions in `src/lib/`: the settings in `settings.ts`, the open photos and what the controls do to them in `photos.ts`, Auto's statistics in `levels.ts`, the corrections in `correction.ts`, the White point in `white-point.ts`, rotation in `rotation.ts`, sizes and the device's limit in `sizes.ts`, file names in `filename.ts`, where a save goes in `save-method.ts`, the keyboard in `keyboard.ts`, the status line's words in `messages.ts`, the preferences in `prefs.ts`, the Content Security Policy in `csp.ts` and what the service worker caches in `precache.ts`. Decisions still to be made are listed under [Open questions](#9-open-questions), each with the option the first version builds. Decided questions go under [Resolved questions](#11-resolved-questions).
+Status: the first version. This describes the app as implemented: the screen in `src/App.tsx` and `src/ui/` (the photo area in `PhotoView.tsx`, the controls in `Controls.tsx`, the strip in `Strip.tsx`, the Preferences dialog in `Preferences.tsx`), opening a photo in `src/photo.ts`, saving in `src/save.ts` and the part in view when zoomed in in `src/detail.ts`, with the full-size work for both in the Web Worker `src/render-worker.ts`, the preferences in localStorage in `src/storage.ts`, and the service worker in `src/service-worker.js`. The rules live in plain, unit-tested functions in `src/lib/`: the settings in `settings.ts`, the open photos and what the controls do to them in `photos.ts`, Auto's statistics in `levels.ts`, the corrections in `correction.ts`, the White point in `white-point.ts`, rotation in `rotation.ts`, zoom and pan in `view.ts`, sizes and the device's limit in `sizes.ts`, file names in `filename.ts`, where a save goes in `save-method.ts`, the keyboard in `keyboard.ts`, the status line's words in `messages.ts`, the preferences in `prefs.ts`, the Content Security Policy in `csp.ts` and what the service worker caches in `precache.ts`. Decisions still to be made are listed under [Open questions](#9-open-questions), each with the option the first version builds. Decided questions go under [Resolved questions](#11-resolved-questions).
 
 ## 1. Overview
 
@@ -41,7 +41,7 @@ Everything happens on the device. Photos are read from files you choose, process
 
 ### Sizes
 
-- Each open photo keeps three sizes: the **original** at full size (kept as the file it came from, and decoded again when saving, so a dozen open scans don't fill an iPhone's memory), the **analysis image**, the photo scaled so its longer side is at most 1024 px (never scaled up), and the **preview**, scaled to fit the photo area at the screen's pixel density, at most 2048 px on the longer side.
+- Each open photo keeps three sizes: the **original** at full size (kept as the file it came from, and decoded again when saving, so a dozen open scans don't fill an iPhone's memory), the **analysis image**, the photo scaled so its longer side is at most 1024 px (never scaled up), and the **preview**, scaled to fit the photo area at the screen's pixel density, at most 2048 px on the longer side. Zoomed in past the preview, the part in view is also redrawn from the original (section 5, **Zoom and pan**, Sharpness).
 - A thumbnail for the strip (section 5), at most 160 px on the longer side and without corrections, is made at the same time.
 - Auto's statistics and the white point's sample are always taken from the analysis image, never from the preview or the original, so they don't depend on the screen and the preview shows exactly the correction that is saved (rule: **Same correction everywhere**, section 4).
 - A photo larger than the device can handle in one canvas is an open question (**Q3**). The first version scales such a photo down when saving and says so (section 7).
@@ -121,20 +121,36 @@ Each photo has its own settings, kept in memory while it is open:
 ## 5. Screen
 
 - **Empty:** with no photo open, the screen shows the app's name, one line saying what it does and that photos stay on the device, and a large **Open photos** button. On a Chromebook it also says photos can be dropped or pasted.
-- **Photo area:** the current photo's preview, corrected, fitted to the area without cropping, on a mid-gray background (so neither white nor black borders fool the eye).
-- **Compare:** pressing and holding on the photo for a third of a second (or holding **Compare**, or the backslash key on a keyboard) shows the photo without corrections, rotation kept, until released. A short tap does nothing unless the eyedropper is armed. Changing photos disarms the eyedropper.
+- **Photo area:** the current photo, corrected, on a mid-gray background (so neither white nor black borders fool the eye). It starts fitted to the area without cropping (**Fit**), with an 8 px margin, and can be zoomed and panned (**Zoom and pan**, below).
+- **Compare:** pressing and holding still on the photo for a third of a second (or holding **Compare**, or the backslash key on a keyboard) shows the photo without corrections, rotation and zoom kept, until released. A finger that moves more than 8 px first is a drag, not a hold. A short tap samples when the eyedropper is armed; otherwise a double-tap zooms (below). Changing photos disarms the eyedropper.
 - **Controls:** **Auto** (switch) with its **Strength** slider; **White point** and **Clear**; the five sliders; **Rotate left** and **Rotate right**; **Reset**; **Apply to all** (shown with two or more photos); **Save** and **Save all** (section 7). Every change shows in the preview at once; the preview is redrawn from the tables, so dragging a slider stays smooth.
 - **Status line:** a line under the photo for what the eyedropper wants, errors (a file that couldn't be opened, a refused sample), save progress and save results. A message stays until the next one or until the photo changes. A long message wraps onto as many lines as it needs, so none of it is cut off; on a narrow screen the strip and the controls move down to make room. Files that couldn't be opened are named together ("2 files couldn't be opened (a.tif, b.heic): their format isn't supported. Try JPEG or PNG instead."); with no photo open, the message shows under **Open photos**.
 - **Header:** the app's name, **Open photos** (once a photo is open) and **Preferences** (⚙). A preview build adds its badge (section 10).
 - **Several photos:** a strip of thumbnails shows every open photo in the order opened; tapping one makes it current. Each has a small × to close it (its work is lost; there is no confirmation, because nothing is lost from the original file). The current one is outlined.
 - **Layout:** in a window at least 900 px wide (a Chromebook, an iPad in landscape), the controls sit in a panel to the right of the photo and the strip runs along the bottom. On a narrower screen (an iPhone), the photo is on top, the strip below it, and the controls in a panel below that, which scrolls on its own so the photo stays in view.
-- **Keyboard** (Chromebook): Ctrl+O opens photos, Ctrl+S saves the current photo, left and right arrows move between photos, `[` and `]` rotate, `W` arms the eyedropper (and disarms it), Escape disarms it, backslash compares. While a slider or another control has the focus, only Ctrl+O, Ctrl+S and Escape are shortcuts, so the arrows move the slider.
+- **Keyboard** (Chromebook): Ctrl+O opens photos, Ctrl+S saves the current photo, left and right arrows move between photos, `[` and `]` rotate, `W` arms the eyedropper (and disarms it), Escape disarms it, backslash compares, `+` (or `=`) and `-` zoom in and out by 2x toward the middle, and `0` fits. While a slider or another control has the focus, only Ctrl+O, Ctrl+S and Escape are shortcuts, so the arrows move the slider.
 - **Preferences** (a ⚙ button) opens a dialog with the settings in section 8. **Done**, Escape or a tap outside it closes it.
+
+### Zoom and pan
+
+Zooming in shows detail, and makes the White point easier to place with a finger.
+
+- **Zoom** runs from **Fit** (1) up to 4x Fit or twice **100%**, whichever is more. **100%** shows one pixel of the photo on one pixel of the screen; for a photo smaller than the area it is the same as Fit. Zoomed in, the photo always covers the area: it can't be panned past its edge. Smaller than the area (at Fit), it stays centered.
+- **Presets:** buttons at the bottom right of the photo area: **Fit**, **100%**, **2x** and **4x**. Each zooms toward the middle of the area, and the one matching the zoom is highlighted.
+- **Touch:**
+  - pinch with two fingers to zoom, around the point between them, and move them together to pan;
+  - drag with one finger to pan, when zoomed in;
+  - double-tap to zoom to 2x around the tapped point, or, zoomed in, back to Fit. While the eyedropper is armed, a tap samples instead.
+- **Mouse and trackpad** (Chromebook): Ctrl + scroll wheel, or a trackpad pinch, zooms toward the pointer; scrolling pans; dragging pans when zoomed in. The keyboard's `+`, `-` and `0` are above.
+- **Overview:** zoomed in, a small picture of the whole photo (at most 96 px) at the top left shows a white frame round the part in view.
+- **Sharpness:** the preview is at most 2048 px, so zoomed in past it, the part in view would be soft. Once the view has stayed still for a fifth of a second, that part is redrawn from the original, at the screen pixels it covers (never more than the original has), and drawn over the preview. It is corrected the same way as the preview (rule: **Same correction everywhere**), so a change to a setting shows at once, and Compare shows it uncorrected. Until it arrives, and if the original can't be decoded, the preview shows, softer. The Web Worker keeps the decoded original of the photo last zoomed into, so panning doesn't decode it again.
+- Zoom and pan go back to Fit when another photo becomes current and when the photo is turned. They are never stored, and they don't change what is saved.
+- The White point's tap is mapped through the zoom and pan, then the rotation, to the analysis image. A tap off the photo (in the margin) samples nothing. Whether to sample a finer spot when zoomed in is an open question (**Q10**).
 
 ## 6. Rotation
 
 - **Rotate left** and **Rotate right** turn the photo 90 degrees counterclockwise and clockwise. Four turns are back where it started (rotation is kept as 0, 90, 180 or 270 degrees).
-- Rotation turns the preview, the white-point tap's mapping and the saved file. It does not change Auto's statistics (they don't depend on which way up the photo is).
+- Rotation turns the preview, the overview, the white-point tap's mapping and the saved file. It does not change Auto's statistics (they don't depend on which way up the photo is).
 
 Cropping is an open question (**Q6**).
 
@@ -179,7 +195,7 @@ Kept in localStorage as one JSON object under `photo-fix.prefs`. A missing, unre
 
 ## 9. Open questions
 
-Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q10**.
+Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q11**.
 
 Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried).
 
@@ -249,6 +265,18 @@ A JPEG holds one picture and no revision history, so once saved, the settings th
 | Settings in the JPEG | The saved JPEG carries, in its XMP metadata (a few hundred bytes, ignored by other apps), the correction settings (section 4, **Settings**, with Auto's statistics and the White point's gains) and the original's file name. Opening a `-fixed` photo shows how it was made; with the original open too, **Start over from the original** opens the original with those settings applied, so it can be adjusted and saved again without a second JPEG loss |
 | A sidecar file | The same settings in a small file saved beside the photo (`<name>-fixed.photofix.json`). Works with any format, but it's a second file to keep with every photo, and the share sheet on an iPhone would save it to Files, not to Photos |
 
+### Q10. When zoomed in, where does the White point sample?
+
+Zoomed in (section 5, **Zoom and pan**), a tap lands far more precisely than the 5 x 5 block of the 1024 px analysis image it samples (section 4, **White point**): on a 600 dpi scan of a 6 x 4 print, that block covers about 18 pixels of the original each way, about 1/35 of an inch, whatever the zoom.
+
+| Option | Behavior |
+|---|---|
+| The analysis image | As in section 4: a 5 x 5 block of the analysis image, at any zoom |
+| The original | A 5 x 5 block of the original at full size, after Auto. As fine as the tap, but so small it can land on film grain or a speck of dust |
+| A fingertip on the screen | A block of the original covering about 10 x 10 CSS pixels of the screen round the tap, after Auto: about the analysis image's block at Fit, and a smaller, more precise spot the further you zoom in |
+
+The other two options take the sample from the original, not the analysis image, which changes the rule in section 3 (**Sizes**) that the sample always comes from the analysis image.
+
 Still to think about: dust and scratch removal; restoring a black-and-white photo's neutral tone (or a sepia one's); a histogram display; undo.
 
 ## 10. Publishing
@@ -274,6 +302,7 @@ Open questions that have been decided, oldest first, under their permanent numbe
 ## 12. Known limitations
 
 - No undo history: Reset and Clear are the only way back.
+- Zooming in on a large scan keeps its decoded original in memory (about 140 MB for 35 million pixels), which an iPhone may refuse; the preview then shows, softer.
 - Nothing is kept between visits: closing or reloading the page closes every photo and loses its settings. The original files are never changed.
 - 8 bits per channel throughout (section 3, **Bit depth**).
 - The saved JPEG carries no color profile; it is in sRGB, which is what every phone, browser and photo app assumes.

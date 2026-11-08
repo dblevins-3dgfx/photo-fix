@@ -13,7 +13,7 @@ import { openPhoto, type Photo } from './photo';
 import { savePhotos, share } from './save';
 import { PREVIEW, loadPrefs, savePrefs } from './storage';
 import Controls from './ui/Controls';
-import PhotoView from './ui/PhotoView';
+import PhotoView, { type PhotoViewHandle } from './ui/PhotoView';
 import Preferences from './ui/Preferences';
 import Strip from './ui/Strip';
 
@@ -35,6 +35,7 @@ export default function App() {
   const [pendingShare, setPendingShare] = useState<{ files: File[]; outcome: words.SaveOutcome } | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const photoView = useRef<PhotoViewHandle>(null);
   const photo = state.current >= 0 ? state.photos[state.current] : null;
 
   // Thumbnails' blob URLs go when their photo closes
@@ -142,6 +143,9 @@ export default function App() {
       else if (action === 'rotate-right') dispatch({ type: 'rotate', dir: 1 });
       else if (action === 'eyedropper') setArm(!a);
       else if (action === 'compare') setComparing(true);
+      else if (action === 'zoom-in') photoView.current?.zoomBy(2);
+      else if (action === 'zoom-out') photoView.current?.zoomBy(0.5);
+      else if (action === 'zoom-fit') photoView.current?.fit();
       e.preventDefault();
     };
     const up = (e: KeyboardEvent) => { if (e.key === '\\') setComparing(false); };
@@ -223,8 +227,8 @@ export default function App() {
           <section className="flex shrink-0 flex-col min-[900px]:min-h-0">
             {/* On a narrow screen the photo keeps its height, and a long
                 message pushes the strip and controls down */}
-            <div className="photo-area flex h-[42dvh] shrink-0 items-center justify-center p-2 min-[900px]:h-auto min-[900px]:min-h-0 min-[900px]:flex-1 min-[900px]:shrink">
-              <PhotoView photo={photo} comparing={comparing} armed={armed} onTap={sample} onHold={setComparing} />
+            <div className="photo-area h-[42dvh] shrink-0 overflow-hidden min-[900px]:h-auto min-[900px]:min-h-0 min-[900px]:flex-1 min-[900px]:shrink">
+              <PhotoView ref={photoView} photo={photo} comparing={comparing} armed={armed} onTap={sample} onHold={setComparing} />
             </div>
             {/* The status line wraps, so a long message is never cut off */}
             <div className="flex min-h-8 items-center gap-3 px-3 py-1 text-sm" aria-live="polite">

@@ -18,6 +18,14 @@ describe('Keyboard', () => {
     expect(keyAction({ key: 'Escape' })).toBe('disarm');
     expect(keyAction({ key: '\\' })).toBe('compare');
   });
+  it('+ (or =), - and 0 zoom in, out and to Fit', () => {
+    expect(keyAction({ key: '+' })).toBe('zoom-in');
+    expect(keyAction({ key: '=' })).toBe('zoom-in');
+    expect(keyAction({ key: '-' })).toBe('zoom-out');
+    expect(keyAction({ key: '0' })).toBe('zoom-fit');
+    expect(keyAction({ key: '0', inControl: true })).toBeNull();
+    expect(keyAction({ key: '+', ctrlKey: true })).toBeNull();
+  });
   it('keys typed into a control are not shortcuts, but Escape still disarms', () => {
     expect(keyAction({ key: 'ArrowLeft', inControl: true })).toBeNull();
     expect(keyAction({ key: 'w', inControl: true })).toBeNull();
