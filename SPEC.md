@@ -71,15 +71,16 @@ Steps 1 to 5 act on each channel on its own, so they are combined into one 256-e
 
 ### Auto
 
-Per-channel levels: stretches each of red, green and blue so its darkest and lightest values reach black and white. This removes most color casts from faded prints, because each dye faded by a different amount. Whether Auto should also even out the midtones is an open question (**Q1**).
+Per-channel levels: stretches each of red, green and blue so its darkest and lightest values reach black and white. This removes most color casts from faded prints, because each dye faded by a different amount. **Midtones** goes further, for a print whose dyes faded unevenly in the middle as well (Resolved questions, **Q1**).
 
 - **Where it measures:** a histogram of each channel over the analysis image, leaving out a margin of 2% of the width at the left and right and 2% of the height at the top and bottom (rounded down to whole pixels), so the scanner lid or bed around the print doesn't count.
 - **Black and white points:** for each channel, `lo` is the lowest value with at least 0.5% of the measured pixels at or below it, and `hi` is the highest value with at least 0.5% of the measured pixels at or above it. Both are found on the 0 to 255 histogram and then divided by 255.
 - **Flat channels are left alone:** a channel with `hi - lo` below 0.1 (a photo that is nearly one color, or blank) is not stretched.
 - **Stretch:** otherwise, `auto(v) = (v - lo) / (hi - lo)`, clamped to 0 to 1.
-- **Strength:** a slider from 0% to 100%, default 100%, blends between the photo and the stretch: `v + strength * (auto(v) - v)`. At 0% Auto changes nothing. The slider is shown only while Auto is on.
-- **On and off:** Auto is a switch. Turning it off keeps the strength, so turning it on again restores it.
-- The statistics (`lo` and `hi` per channel) are measured once, when the photo is opened. They don't depend on any setting.
+- **Midtones:** a switch, off by default, shown only while Auto is on. On, each channel also gets a power curve after its stretch, `v ^ gamma`, that moves its median to the mean of the three channels' medians, so a cast left in the middle tones goes too. The **median** of a channel is the lowest value with at least half of the measured pixels (the same pixels as `lo` and `hi`) at or below it, found on the 0 to 255 histogram, divided by 255, then stretched like any other value. With the stretched medians `m` and their mean `target`, `gamma = ln(target) / ln(m)`, clamped to 0.5 to 2. A channel whose stretched median is 0 or 1 is left alone, and so is every channel when `target` is 0 or 1.
+- **Strength:** a slider from 0% to 100%, default 100%, blends between the photo and the stretch (with Midtones, the stretch and its curve): `v + strength * (auto(v) - v)`. At 0% Auto changes nothing. The slider is shown only while Auto is on.
+- **On and off:** Auto is a switch. Turning it off keeps the strength and Midtones, so turning it on again restores them.
+- The statistics (`lo`, `hi` and the median per channel) are measured once, when the photo is opened. They don't depend on any setting.
 
 ### White point
 
@@ -110,12 +111,13 @@ Each photo has its own settings, kept in memory while it is open:
 |---|---|
 | Auto | the **Auto on for new photos** preference (section 8) |
 | Auto strength | 100% |
+| Midtones | off |
 | White point | none |
 | Warmth, Tint, Brightness, Contrast, Saturation | 0 |
 | Rotation | 0 degrees |
 
 - **Reset** puts the photo's settings back to these defaults, rotation included.
-- **Apply to all** copies the current photo's Auto (on or off), Auto strength, Warmth, Tint, Brightness, Contrast and Saturation to every open photo. It does not copy the White point or the Rotation, which belong to one photo. Each photo keeps its own Auto statistics, so Auto still fits each one. (For a batch from one album, Auto plus the same slider settings is usually close.)
+- **Apply to all** copies the current photo's Auto (on or off), Auto strength, Midtones, Warmth, Tint, Brightness, Contrast and Saturation to every open photo. It does not copy the White point or the Rotation, which belong to one photo. Each photo keeps its own Auto statistics, so Auto still fits each one. (For a batch from one album, Auto plus the same slider settings is usually close.)
 - There is no undo history; Reset and Clear are the way back. (Known limitations.)
 
 ## 5. Screen
@@ -198,16 +200,6 @@ Kept in localStorage as one JSON object under `photo-fix.prefs`. A missing, unre
 Every question has a permanent number, Q1, Q2 and so on, given in the order the questions were opened. A number never changes and is never reused, so it means the same question here, in **Resolved questions** (section 11), in the app, and in pull requests and commits. The next new question is **Q11**.
 
 Each question's first option is what the first version builds; the others are not built unless the question is decided their way (or the question asks for both to be tried).
-
-### Q1. Should Auto also even out the midtones?
-
-Per-channel levels (section 4, **Auto**) set each channel's black and white points, but a print whose dyes faded unevenly in the middle can keep a cast in the midtones.
-
-| Option | Behavior |
-|---|---|
-| Levels only | As in section 4 |
-| Levels and midtones | After the stretch, each channel also gets a power curve `v ^ gamma` that moves its median (over the same measured pixels) to the mean of the three channels' medians: `gamma = ln(target) / ln(median)`, clamped to 0.5 to 2; a channel with its median at 0 or 1 is left alone |
-| Both, as a choice | Auto has a **Midtones** switch, off by default |
 
 ### Q3. What happens to a photo too large for the device to save?
 
@@ -298,6 +290,7 @@ Open questions that have been decided, oldest first, under their permanent numbe
 |---|---|---|---|---|---|---|
 | Q7 | 2026-11-07 | How does Save all deliver several files on a Chromebook? | One download each; one zip file | **Replaced by Q8** | Neither was built. The question became Q8 (where Save puts files on a Chromebook), whose default, Chrome's Save dialog, writes Save all into one chosen folder, so a zip isn't needed. Reason: photos are kept in Google Drive, and the Save dialog can save straight into it | [#1](https://github.com/dblevins-3dgfx/photo-fix/pull/1) |
 | Q2 | 2026-11-07 | Should TIFF files open? | No; Yes, with a TIFF decoder library | **No** | TIFF is skipped with the unsupported-format message, which suggests JPEG or PNG (section 3, **Formats**). No decoder library was added. JPEG, PNG and WebP still open, since the browser decodes them all the same way at no extra cost. Reason: the scanner in use saves only JPEG | [#1](https://github.com/dblevins-3dgfx/photo-fix/pull/1) |
+| Q1 | 2026-11-08 | Should Auto also even out the midtones? | Levels only; levels and midtones; both, as a choice | **Both, as a choice** | Auto has a **Midtones** switch, off by default (section 4, **Auto**): off is levels only, as before; on adds a power curve per channel that moves its median to the mean of the three. It is copied by Apply to all and cleared by Reset | [#9](https://github.com/dblevins-3dgfx/photo-fix/pull/9) |
 
 ## 12. Known limitations
 

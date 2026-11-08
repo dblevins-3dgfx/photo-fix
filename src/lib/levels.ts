@@ -1,10 +1,12 @@
 // Auto's statistics (SPEC.md section 4, Auto): the black and white point of
 // each channel, measured once on the analysis image when a photo is opened.
 
-// lo and hi per channel (red, green, blue), each 0 to 1
+// lo, hi and the median per channel (red, green, blue), each 0 to 1
 export interface AutoStats {
   lo: readonly [number, number, number];
   hi: readonly [number, number, number];
+  // For Midtones
+  median: readonly [number, number, number];
 }
 
 // The margin left out at each edge: 2% of the width (left and right) and of
@@ -50,11 +52,25 @@ export function clipPoints(hist: Uint32Array, count: number): [number, number] {
   return [lo, hi];
 }
 
+// The median on the 0 to 255 scale: the lowest value with at least half of
+// `count` at or below it
+export function medianOf(hist: Uint32Array, count: number) {
+  if (count <= 0) return 128;
+  let v = 0;
+  for (let sum = 0; v < 255; v++) {
+    sum += hist[v];
+    if (sum >= count / 2) break;
+  }
+  return v;
+}
+
 export function measureAuto(data: Uint8ClampedArray, width: number, height: number): AutoStats {
   const { hist, count } = histograms(data, width, height);
   const points = hist.map((h) => clipPoints(h, count));
+  const median = hist.map((h) => medianOf(h, count) / 255);
   return {
     lo: [points[0][0] / 255, points[1][0] / 255, points[2][0] / 255],
     hi: [points[0][1] / 255, points[1][1] / 255, points[2][1] / 255],
+    median: [median[0], median[1], median[2]],
   };
 }

@@ -58,8 +58,18 @@ export default function Controls({
           />
         </label>
         {settings.auto && (
-          <Slider label="Strength" value={settings.strength} min={0} max={100} reset={100} unit="%"
-            onChange={(v) => onChange({ strength: v })} />
+          <>
+            <Slider label="Strength" value={settings.strength} min={0} max={100} reset={100} unit="%"
+              onChange={(v) => onChange({ strength: v })} />
+            <label className="flex items-center justify-between text-sm">
+              <span title="Also even out a color cast in the midtones">Midtones</span>
+              <input
+                type="checkbox" role="switch" checked={settings.midtones}
+                onChange={(e) => onChange({ midtones: e.target.checked })}
+                className="h-5 w-5 accent-sky-600"
+              />
+            </label>
+          </>
         )}
       </section>
 

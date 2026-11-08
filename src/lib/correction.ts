@@ -13,11 +13,35 @@ export const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 // A channel whose hi - lo is below this is not stretched
 export const FLAT = 0.1;
 
-// Auto for one channel: the stretch, blended in by strength (0 to 1)
-export function autoValue(v: number, lo: number, hi: number, strength: number) {
+// The stretch for one channel (a flat channel is left alone)
+export function stretchValue(v: number, lo: number, hi: number) {
   if (hi - lo < FLAT) return v;
-  const stretched = clamp01((v - lo) / (hi - lo));
-  return clamp01(v + strength * (stretched - v));
+  return clamp01((v - lo) / (hi - lo));
+}
+
+// Midtones: the power for each channel that moves its median, once
+// stretched, to the mean of the three stretched medians, clamped to 0.5 to
+// 2. A channel whose stretched median is 0 or 1 is left alone (1), and so
+// is every channel when the mean is 0 or 1.
+export const MIN_GAMMA = 0.5;
+export const MAX_GAMMA = 2;
+
+export function midtoneGammas(stats: AutoStats): [number, number, number] {
+  const m = [0, 1, 2].map((c) => stretchValue(stats.median[c], stats.lo[c], stats.hi[c]));
+  const target = (m[0] + m[1] + m[2]) / 3;
+  const gamma = (mc: number) =>
+    mc <= 0 || mc >= 1 || target <= 0 || target >= 1
+      ? 1
+      : Math.min(MAX_GAMMA, Math.max(MIN_GAMMA, Math.log(target) / Math.log(mc)));
+  return [gamma(m[0]), gamma(m[1]), gamma(m[2])];
+}
+
+// Auto for one channel: the stretch (and with Midtones, its power curve),
+// blended in by strength (0 to 1)
+export function autoValue(v: number, lo: number, hi: number, strength: number, gamma = 1) {
+  let a = stretchValue(v, lo, hi);
+  if (gamma !== 1) a = Math.pow(a, gamma);
+  return clamp01(v + strength * (a - v));
 }
 
 export const warmthGains = (w: number) => ({ red: 1 + (0.2 * w) / 100, blue: 1 - (0.2 * w) / 100 });
@@ -41,10 +65,11 @@ export function buildTables(s: Settings, stats: AutoStats, only?: 'auto'): Table
   const warm = warmthGains(s.warmth);
   const channelGain = [warm.red, tintGain(s.tint), warm.blue];
   const tables = [new Float64Array(256), new Float64Array(256), new Float64Array(256)] as const;
+  const gammas = s.auto && s.midtones ? midtoneGammas(stats) : [1, 1, 1];
   for (let c = 0; c < 3; c++) {
     for (let i = 0; i < 256; i++) {
       let v = i / 255;
-      if (s.auto) v = autoValue(v, stats.lo[c], stats.hi[c], s.strength / 100);
+      if (s.auto) v = autoValue(v, stats.lo[c], stats.hi[c], s.strength / 100, gammas[c]);
       if (only !== 'auto') {
         if (s.whitePoint) v = clamp01(v * s.whitePoint[c]);
         if (channelGain[c] !== 1) v = clamp01(v * channelGain[c]);

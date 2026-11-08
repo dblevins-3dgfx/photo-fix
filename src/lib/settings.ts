@@ -10,6 +10,8 @@ export interface Settings {
   auto: boolean;
   // Auto's strength, 0 to 100 (percent)
   strength: number;
+  // Auto also evens out the midtones (Q1, resolved)
+  midtones: boolean;
   whitePoint: Gains | null;
   // The five sliders, each -100 to 100
   warmth: number;
@@ -26,6 +28,7 @@ export type Slider = (typeof SLIDERS)[number];
 export const defaultSettings = (autoOn: boolean): Settings => ({
   auto: autoOn,
   strength: 100,
+  midtones: false,
   whitePoint: null,
   warmth: 0,
   tint: 0,
@@ -40,6 +43,7 @@ export const defaultSettings = (autoOn: boolean): Settings => ({
 export const sharedSettings = (s: Settings) => ({
   auto: s.auto,
   strength: s.strength,
+  midtones: s.midtones,
   warmth: s.warmth,
   tint: s.tint,
   brightness: s.brightness,
