@@ -1,5 +1,5 @@
-const PRECACHE = ["./","./apple-touch-icon.png","./assets/index-B7moeg1a.css","./assets/index-DtAJ7FOW.js","./assets/render-worker-DavWgkBV.js","./icon-192.png","./icon-512.png","./icon.svg","./manifest.webmanifest"];
-const VERSION = "18md4jk";
+const PRECACHE = ["./","./apple-touch-icon.png","./assets/index-CDs54VtR.js","./assets/index-FswRyncL.css","./assets/render-worker-DavWgkBV.js","./icon-192.png","./icon-512.png","./icon.svg","./manifest.webmanifest"];
+const VERSION = "1x6jm6i";
 // The service worker (SPEC.md section 2, Offline). The build puts PRECACHE
 // (every published file) and VERSION ahead of this. On install it caches
 // them all; the page is fetched from the network first, so a new version
