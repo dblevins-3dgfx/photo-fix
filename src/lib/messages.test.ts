@@ -21,26 +21,48 @@ describe('Status line', () => {
   it('saved and failed name the files', () => {
     expect(saved(['a-fixed.jpg'])).toBe('Saved a-fixed.jpg');
     expect(saved(['a', 'b'])).toBe('Saved 2 photos');
+    expect(saved(['a'], 'share')).toBe('Shared a');
+    expect(saved(['a', 'b'], 'download')).toBe('Downloaded 2 photos');
     expect(saveFailed(['a-fixed.jpg'])).toBe("Couldn't save a-fixed.jpg");
   });
 });
 
 describe('After a save', () => {
   const smaller = (name: string) => ({ name, width: 4000, height: 4194, origWidth: 4800, origHeight: 5033 });
-  it('names what was saved', () => {
-    expect(saveResult({ saved: ['a-fixed.jpg'], failed: [], smaller: [] })).toBe('Saved a-fixed.jpg');
+  const none = { failed: [], smaller: [] };
+  it('the Save dialog: Saved, naming the file or counting them', () => {
+    expect(saveResult({ method: 'dialog', saved: ['a-fixed.jpg'], ...none })).toBe('Saved a-fixed.jpg');
+    expect(saveResult({ method: 'dialog', saved: ['a', 'b', 'c'], ...none })).toBe('Saved 3 photos');
   });
-  it('says a photo was saved smaller than the scan', () => {
-    expect(saveResult({ saved: ['a-fixed.jpg'], failed: [], smaller: [smaller('a-fixed.jpg')] })).toBe(
+  it('the share sheet: Shared, since the sheet may have sent it anywhere', () => {
+    expect(saveResult({ method: 'share', saved: ['a-fixed.jpg'], ...none })).toBe('Shared a-fixed.jpg');
+    expect(saveResult({ method: 'share', saved: ['a', 'b'], ...none })).toBe('Shared 2 photos');
+  });
+  it('a download: Downloaded, and where to look, never Saved', () => {
+    expect(saveResult({ method: 'download', saved: ['a-fixed.jpg'], ...none }))
+      .toBe('Downloaded a-fixed.jpg. Look in your Downloads folder');
+    expect(saveResult({ method: 'download', saved: ['a', 'b', 'c'], ...none }))
+      .toBe('Downloaded 3 photos. Look in your Downloads folder');
+  });
+  it('says a photo was saved smaller than the scan, with the same word', () => {
+    expect(saveResult({ method: 'dialog', saved: ['a-fixed.jpg'], failed: [], smaller: [smaller('a-fixed.jpg')] })).toBe(
       'Saved at 4000 x 4194, smaller than the 4800 x 5033 scan, the most this device can save');
-    expect(saveResult({ saved: ['a', 'b', 'c'], failed: [], smaller: [smaller('b'), smaller('c')] })).toBe(
-      'Saved 3 photos. 2 were saved smaller than their scans, the most this device can save');
+    expect(saveResult({ method: 'share', saved: ['a-fixed.jpg'], failed: [], smaller: [smaller('a-fixed.jpg')] })).toBe(
+      'Shared at 4000 x 4194, smaller than the 4800 x 5033 scan, the most this device can save');
+    expect(saveResult({ method: 'download', saved: ['a-fixed.jpg'], failed: [], smaller: [smaller('a-fixed.jpg')] })).toBe(
+      'Downloaded at 4000 x 4194, smaller than the 4800 x 5033 scan, the most this device can save. Look in your Downloads folder');
+  });
+  it('counts the photos smaller than their scans in Save all', () => {
+    expect(saveResult({ method: 'share', saved: ['a', 'b', 'c'], failed: [], smaller: [smaller('b'), smaller('c')] })).toBe(
+      'Shared 3 photos. 2 are smaller than their scans, the most this device can save');
+    expect(saveResult({ method: 'dialog', saved: ['a', 'b'], failed: [], smaller: [smaller('b')] })).toBe(
+      'Saved 2 photos. b is smaller than its scan, the most this device can save');
   });
   it('names a file that failed; the others still save', () => {
-    expect(saveResult({ saved: ['a', 'b'], failed: ['c'], smaller: [] })).toBe("Couldn't save c. Saved 2 photos");
+    expect(saveResult({ method: 'dialog', saved: ['a', 'b'], failed: ['c'], smaller: [] })).toBe("Couldn't save c. Saved 2 photos");
   });
   it('says nothing when nothing happened', () => {
-    expect(saveResult({ saved: [], failed: [], smaller: [] })).toBeNull();
+    expect(saveResult({ method: 'download', saved: [], failed: [], smaller: [] })).toBeNull();
   });
 });
 
