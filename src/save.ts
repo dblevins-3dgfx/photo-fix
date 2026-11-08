@@ -25,11 +25,11 @@ function render(photo: Photo, quality: number) {
   }
   const id = nextId++;
   const request: RenderRequest = {
-    id, file: photo.file, settings: photo.settings, stats: photo.stats, quality,
+    kind: 'save', id, file: photo.file, settings: photo.settings, stats: photo.stats, quality,
     limit: canvasPixelLimit(navigator.userAgent, navigator.maxTouchPoints),
   };
   return new Promise<Extract<RenderResult, { blob: Blob }>>((resolve, reject) => {
-    waiting.set(id, (r) => ('error' in r ? reject(new Error(r.error)) : resolve(r)));
+    waiting.set(id, (r) => ('blob' in r ? resolve(r) : reject(new Error('error' in r ? r.error : 'no file'))));
     worker!.postMessage(request);
   });
 }
