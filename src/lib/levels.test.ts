@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clipPoints, histograms, measureAuto } from './levels';
+import { clipPoints, histograms, measureAuto, medianOf } from './levels';
 
 // A width x height RGBA image filled by f(x, y) -> [r, g, b]
 function image(width: number, height: number, f: (x: number, y: number) => [number, number, number]) {
@@ -54,6 +54,17 @@ describe('Black and white points', () => {
     expect(s.lo[1]).toBeCloseTo(53 / 255);
     expect(s.lo[2]).toBeCloseTo(102 / 255);
     expect(s.hi[2]).toBeCloseTo(102 / 255);
+  });
+  it('the median is the lowest value with half the measured pixels at or below it, for Midtones', () => {
+    const hist = new Uint32Array(256);
+    hist[40] = 3;
+    hist[90] = 2;
+    hist[200] = 5;
+    expect(medianOf(hist, 10)).toBe(90);
+    const data = image(100, 100, (x) => [x * 2, 51 + x, 102]);
+    const s = measureAuto(data, 100, 100);
+    expect(s.median[0]).toBeCloseTo(98 / 255); // x 2..97: the 48th of 96 columns, x = 49
+    expect(s.median[2]).toBeCloseTo(102 / 255);
   });
   it('an empty histogram gives the full range', () => {
     expect(clipPoints(new Uint32Array(256), 0)).toEqual([0, 255]);

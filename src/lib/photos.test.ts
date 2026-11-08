@@ -70,7 +70,7 @@ describe('Changing settings', () => {
 });
 
 describe('Apply to all', () => {
-  it('copies Auto, its strength and the five sliders, but not the White point or the Rotation', () => {
+  it('copies Auto, its strength, Midtones and the five sliders, but not the White point or the Rotation', () => {
     let s = withPhotos(3, 0);
     s = photosReducer(s, { type: 'select', index: 2 });
     s = photosReducer(s, { type: 'white-point', gains: [0.9, 1, 1.1] });
@@ -78,11 +78,11 @@ describe('Apply to all', () => {
     s = photosReducer(s, { type: 'select', index: 0 });
     s = photosReducer(s, {
       type: 'change',
-      settings: { auto: false, strength: 70, warmth: 10, tint: -5, brightness: 20, contrast: 15, saturation: 25 },
+      settings: { auto: false, strength: 70, midtones: true, warmth: 10, tint: -5, brightness: 20, contrast: 15, saturation: 25 },
     });
     s = photosReducer(s, { type: 'apply-to-all' });
     for (const p of s.photos) {
-      expect(p.settings).toMatchObject({ auto: false, strength: 70, warmth: 10, tint: -5, brightness: 20, contrast: 15, saturation: 25 });
+      expect(p.settings).toMatchObject({ auto: false, strength: 70, midtones: true, warmth: 10, tint: -5, brightness: 20, contrast: 15, saturation: 25 });
     }
     expect(s.photos[2].settings.whitePoint).toEqual([0.9, 1, 1.1]);
     expect(s.photos[2].settings.rotation).toBe(90);

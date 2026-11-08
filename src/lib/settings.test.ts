@@ -4,7 +4,7 @@ import { defaultSettings, rotate, sharedSettings } from './settings';
 describe('Settings', () => {
   it('defaults: Auto from the preference, strength 100%, no white point, sliders 0, rotation 0', () => {
     expect(defaultSettings(true)).toEqual({
-      auto: true, strength: 100, whitePoint: null, warmth: 0, tint: 0, brightness: 0, contrast: 0, saturation: 0, rotation: 0,
+      auto: true, strength: 100, midtones: false, whitePoint: null, warmth: 0, tint: 0, brightness: 0, contrast: 0, saturation: 0, rotation: 0,
     });
     expect(defaultSettings(false).auto).toBe(false);
   });
@@ -14,6 +14,7 @@ describe('Settings', () => {
     expect(shared).not.toHaveProperty('whitePoint');
     expect(shared).not.toHaveProperty('rotation');
     expect(shared.warmth).toBe(5);
+    expect(sharedSettings({ ...s, midtones: true }).midtones).toBe(true);
   });
 });
 
