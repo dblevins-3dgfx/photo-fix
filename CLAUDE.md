@@ -4,6 +4,8 @@
 
 Every open question has a permanent number (Q1, Q2, ...). A new question takes the next number, which the spec's Open questions section names; update that note when you use it. Never renumber a question or reuse a number, and refer to questions by number in the spec, the app, pull requests and commits.
 
+Each open question has a GitHub issue of its own, titled with its number ("Q11: ..."), holding its options, which one is built, and its **Depends on** note. Open the issue when the question is opened, and link it under the question's heading in `SPEC.md` (`Issue: [#n](...)`). When the question is decided, the pull request that resolves it closes the issue.
+
 When an open question in `SPEC.md` is decided, move the answer into the section it belongs to and remove the options that lost, from the spec, the code and the tests. Then add a row to the spec's **Resolved questions** section: its number, the date, the question, the options tried, the decision, what changed, the reason if one was given, and the pull request.
 
 # Test every spec rule
