@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useShortcut } from '../hooks/useShortcut';
 import { applyCorrection, buildTables, type Tables } from '../lib/correction';
 import { rotatedSize, rotationTransform } from '../lib/rotation';
 import {
@@ -16,11 +17,6 @@ const SLOP = 8;
 const OVERVIEW = 96;
 // How long the view must stay still before the part in view is redrawn from the original
 const SETTLE_MS = 200;
-
-export interface PhotoViewHandle {
-  zoomBy: (factor: number) => void;
-  fit: () => void;
-}
 
 // The part of the original in view, as it came from the worker, and the
 // same corrected for the screen
@@ -48,13 +44,12 @@ function corrected(image: ImageData, tables: Tables, saturation: number, compari
 // eyedropper armed, a short tap reports where it landed, as fractions of
 // the turned photo's width and height. Drag (when zoomed in), pinch,
 // Ctrl + scroll, double-tap and the presets zoom and pan.
-export default function PhotoView({ photo, comparing, armed, onTap, onHold, ref }: {
+export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
   photo: Photo;
   comparing: boolean;
   armed: boolean;
   onTap: (u: number, v: number) => void;
   onHold: (held: boolean) => void;
-  ref?: Ref<PhotoViewHandle>;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -162,10 +157,11 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold, ref 
   const zoomTo = useCallback(
     (zoom: number) => setView((v) => zoomAt(v, zoom, area.width / 2, area.height / 2, area, turned, pixelRatio)),
     [area, turned, pixelRatio]);
-  useImperativeHandle(ref, () => ({
-    zoomBy: (factor) => setView((v) => zoomAt(v, v.zoom * factor, area.width / 2, area.height / 2, area, turned, pixelRatio)),
-    fit: () => setView(FIT),
-  }), [area, turned, pixelRatio]);
+  const zoomBy = (factor: number) =>
+    setView((v) => zoomAt(v, v.zoom * factor, area.width / 2, area.height / 2, area, turned, pixelRatio));
+  useShortcut('zoom-in', () => zoomBy(2));
+  useShortcut('zoom-out', () => zoomBy(0.5));
+  useShortcut('zoom-fit', () => setView(FIT));
 
   // Ctrl + scroll (and a trackpad pinch) zooms toward the pointer; scrolling pans when zoomed in
   useEffect(() => {

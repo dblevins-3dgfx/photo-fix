@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildTables } from './correction';
-import { defaultSettings } from './settings';
+import { settings, stats as makeStats } from './test-helpers';
 import { sampleBlock, whitePointGains } from './white-point';
 
-const identity = buildTables(defaultSettings(false), { lo: [0, 0, 0], hi: [1, 1, 1], median: [0.5, 0.5, 0.5] });
+const identity = buildTables(settings(), makeStats());
 
 function image(width: number, height: number, f: (x: number, y: number) => [number, number, number]) {
   const data = new Uint8ClampedArray(width * height * 4);
@@ -25,8 +25,8 @@ describe('Sample', () => {
     expect(sampleBlock(data, 10, 10, 0, 0, identity)[0]).toBeCloseTo(1 / 9);
   });
   it('is taken after Auto', () => {
-    const stats = { lo: [0.2, 0.2, 0.2] as const, hi: [0.6, 0.6, 0.6] as const, median: [0.4, 0.4, 0.4] as const };
-    const auto = buildTables({ ...defaultSettings(true) }, stats, 'auto');
+    const stats = makeStats({ lo: [0.2, 0.2, 0.2], hi: [0.6, 0.6, 0.6], median: [0.4, 0.4, 0.4] });
+    const auto = buildTables(settings({ auto: true }), stats, 'auto');
     const data = image(5, 5, () => [102, 102, 102]); // 0.4, halfway between lo and hi
     expect(sampleBlock(data, 5, 5, 2, 2, auto)[0]).toBeCloseTo(0.5);
   });

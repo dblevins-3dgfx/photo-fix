@@ -4,11 +4,11 @@ import {
   warmthGains,
 } from './correction';
 import type { AutoStats } from './levels';
-import { defaultSettings, type Settings } from './settings';
+import type { Settings } from './settings';
+import { settings, stats as makeStats } from './test-helpers';
 
-const stats: AutoStats = { lo: [0.2, 0.1, 0.3], hi: [0.8, 0.9, 0.7], median: [0.5, 0.4, 0.55] };
-const flat: AutoStats = { lo: [0, 0, 0], hi: [1, 1, 1], median: [0.5, 0.5, 0.5] };
-const settings = (over: Partial<Settings> = {}): Settings => ({ ...defaultSettings(false), ...over });
+const stats = makeStats({ lo: [0.2, 0.1, 0.3], hi: [0.8, 0.9, 0.7], median: [0.5, 0.4, 0.55] });
+const flat = makeStats();
 
 // Every RGBA value 0 to 255 in each channel, alpha varying too
 function allValues() {
@@ -76,7 +76,7 @@ describe('Auto', () => {
 });
 
 describe('Midtones', () => {
-  const faded: AutoStats = { lo: [0, 0, 0], hi: [1, 1, 1], median: [0.6, 0.4, 0.5] };
+  const faded = makeStats({ median: [0.6, 0.4, 0.5] });
   it('is off by default', () => {
     expect(settings({ auto: true }).midtones).toBe(false);
     expect(buildTables(settings({ auto: true }), faded)).toEqual(buildTables(settings({ auto: true }), { ...faded, median: [0.5, 0.5, 0.5] }));
@@ -89,19 +89,19 @@ describe('Midtones', () => {
     for (let c = 0; c < 3; c++) expect(autoValue(faded.median[c], 0, 1, 1, g[c])).toBeCloseTo(0.5);
   });
   it('works on the stretched medians', () => {
-    const s: AutoStats = { lo: [0.2, 0.2, 0.2], hi: [0.6, 0.6, 0.6], median: [0.4, 0.3, 0.5] };
+    const s = makeStats({ lo: [0.2, 0.2, 0.2], hi: [0.6, 0.6, 0.6], median: [0.4, 0.3, 0.5] });
     const m = [0.5, 0.25, 0.75];
     expect(stretchValue(0.3, 0.2, 0.6)).toBeCloseTo(0.25);
     expect(midtoneGammas(s)[1]).toBeCloseTo(Math.log(0.5) / Math.log(m[1]));
   });
   it('clamps each power to 0.5 to 2', () => {
-    const g = midtoneGammas({ lo: [0, 0, 0], hi: [1, 1, 1], median: [0.9, 0.1, 0.5] });
+    const g = midtoneGammas(makeStats({ median: [0.9, 0.1, 0.5] }));
     expect(g[0]).toBe(2);
     expect(g[1]).toBe(0.5);
   });
   it('leaves a channel with its median at 0 or 1 alone, and all when the mean is 0', () => {
-    expect(midtoneGammas({ lo: [0, 0, 0], hi: [1, 1, 1], median: [1, 0.4, 0.5] })[0]).toBe(1);
-    expect(midtoneGammas({ lo: [0, 0, 0], hi: [1, 1, 1], median: [0, 0, 0] })).toEqual([1, 1, 1]);
+    expect(midtoneGammas(makeStats({ median: [1, 0.4, 0.5] }))[0]).toBe(1);
+    expect(midtoneGammas(makeStats({ median: [0, 0, 0] }))).toEqual([1, 1, 1]);
   });
   it('comes with Auto: off with it, and blended by its strength (at 0% no change)', () => {
     expect(buildTables(settings({ auto: false, midtones: true }), faded)).toEqual(buildTables(settings(), faded));
