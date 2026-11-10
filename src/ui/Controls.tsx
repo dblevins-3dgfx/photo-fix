@@ -1,11 +1,32 @@
 import { Copy, Pipette, RotateCcw, RotateCw, Save, SaveAll, SplitSquareHorizontal, Undo2, X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { Settings, Slider as SliderName } from '../lib/settings';
+import { adjustmentsIn, type Adjustment } from '../lib/adjustments';
+import type { Settings } from '../lib/settings';
 import Slider from './Slider';
 
-const SLIDER_LABELS: [SliderName, string][] = [
-  ['warmth', 'Warmth'], ['tint', 'Tint'], ['brightness', 'Brightness'], ['contrast', 'Contrast'], ['saturation', 'Saturation'],
-];
+// The control for one adjustment: a switch or a slider, from its entry in
+// the table. Double-tapping a slider's label puts it back to its default.
+function AdjustmentControl({ adjustment: a, settings, onChange }: {
+  adjustment: Adjustment; settings: Settings; onChange: (s: Partial<Settings>) => void;
+}) {
+  if (a.onlyWithAuto && !settings.auto) return null;
+  if (a.kind === 'slider') {
+    return (
+      <Slider label={a.label} value={settings[a.key] as number} min={a.min} max={a.max} reset={a.default} unit={a.unit}
+        onChange={(v) => onChange({ [a.key]: v })} />
+    );
+  }
+  return (
+    <label className={`flex items-center justify-between ${a.onlyWithAuto ? 'text-sm' : ''}`}>
+      <span className={a.onlyWithAuto ? undefined : 'font-medium'} title={a.hint}>{a.label}</span>
+      <input
+        type="checkbox" role="switch" checked={settings[a.key] as boolean}
+        onChange={(e) => onChange({ [a.key]: e.target.checked })}
+        className="h-5 w-5 accent-sky-600"
+      />
+    </label>
+  );
+}
 
 function Button({ onClick, children, active = false, disabled = false, title }: {
   onClick?: () => void; children: ReactNode; active?: boolean; disabled?: boolean; title?: string;
@@ -49,28 +70,9 @@ export default function Controls({
       </div>
 
       <section className="space-y-2">
-        <label className="flex items-center justify-between">
-          <span className="font-medium">Auto</span>
-          <input
-            type="checkbox" role="switch" checked={settings.auto}
-            onChange={(e) => onChange({ auto: e.target.checked })}
-            className="h-5 w-5 accent-sky-600"
-          />
-        </label>
-        {settings.auto && (
-          <>
-            <Slider label="Strength" value={settings.strength} min={0} max={100} reset={100} unit="%"
-              onChange={(v) => onChange({ strength: v })} />
-            <label className="flex items-center justify-between text-sm">
-              <span title="Also even out a color cast in the midtones">Midtones</span>
-              <input
-                type="checkbox" role="switch" checked={settings.midtones}
-                onChange={(e) => onChange({ midtones: e.target.checked })}
-                className="h-5 w-5 accent-sky-600"
-              />
-            </label>
-          </>
-        )}
+        {adjustmentsIn('auto').map((a) => (
+          <AdjustmentControl key={a.key} adjustment={a} settings={settings} onChange={onChange} />
+        ))}
       </section>
 
       <section className="flex flex-wrap items-center gap-2">
@@ -81,9 +83,8 @@ export default function Controls({
       </section>
 
       <section className="space-y-3">
-        {SLIDER_LABELS.map(([key, label]) => (
-          <Slider key={key} label={label} value={settings[key]} min={-100} max={100} reset={0}
-            onChange={(v) => onChange({ [key]: v })} />
+        {adjustmentsIn('tone').map((a) => (
+          <AdjustmentControl key={a.key} adjustment={a} settings={settings} onChange={onChange} />
         ))}
       </section>
 

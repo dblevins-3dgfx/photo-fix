@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PREFS, parsePrefs, prefsKey, previewNumber, seedPreview, serializePrefs } from './prefs';
+import { DEFAULT_PREFS, PREFERENCES, parsePrefs, prefsKey, previewNumber, seedPreview, serializePrefs } from './prefs';
 
 describe('Preferences', () => {
   it('default to Auto on and JPEG quality 92', () => {
@@ -54,5 +54,16 @@ describe('Preview builds', () => {
     const s = store();
     seedPreview(s, '4');
     expect(s.getItem('photo-fix.preview.4.prefs')).toBeNull();
+  });
+});
+
+describe('The table of preferences', () => {
+  it('covers every preference, with its default', () => {
+    expect(PREFERENCES.map((p) => p.key).sort()).toEqual(Object.keys(DEFAULT_PREFS).sort());
+    for (const p of PREFERENCES) expect(DEFAULT_PREFS[p.key]).toBe(p.default);
+  });
+  it('names them as the dialog shows them, with JPEG quality from 60 to 100', () => {
+    expect(PREFERENCES.map((p) => p.label)).toEqual(['Auto on for new photos', 'JPEG quality']);
+    expect(PREFERENCES[1]).toMatchObject({ kind: 'slider', min: 60, max: 100 });
   });
 });
