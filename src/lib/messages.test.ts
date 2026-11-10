@@ -15,12 +15,15 @@ describe('Status line', () => {
     expect(saving(1, 1)).toBe('Saving');
   });
   it('a photo saved smaller than the scan says so', () => {
-    expect(savedSmaller(4000, 4194, 4800, 5033)).toBe(
+    expect(savedSmaller(4000, 4194, 4800, 5033, 'dialog')).toBe(
       'Saved at 4000 x 4194, smaller than the 4800 x 5033 scan, the most this device can save');
   });
   it('saved and failed name the files', () => {
-    expect(saved(['a-fixed.jpg'])).toBe('Saved a-fixed.jpg');
-    expect(saved(['a', 'b'])).toBe('Saved 2 photos');
+    expect(saved(['a-fixed.jpg'], 'dialog')).toBe('Saved a-fixed.jpg');
+    expect(saved(['a', 'b'], 'dialog')).toBe('Saved 2 photos');
+    // The method must be named: a share or a download is never called saved by default
+    // @ts-expect-error the method is required
+    saved(['a']);
     expect(saved(['a'], 'share')).toBe('Shared a');
     expect(saved(['a', 'b'], 'download')).toBe('Downloaded 2 photos');
     expect(saveFailed(['a-fixed.jpg'])).toBe("Couldn't save a-fixed.jpg");

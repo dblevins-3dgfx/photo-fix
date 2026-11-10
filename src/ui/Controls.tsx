@@ -1,13 +1,13 @@
 import { Copy, Pipette, RotateCcw, RotateCw, Save, SaveAll, SplitSquareHorizontal, Undo2, X } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { adjustmentsIn, type Adjustment } from '../lib/adjustments';
+import { adjustmentsIn, type Adjustment, type Adjustments } from '../lib/adjustments';
 import type { Settings } from '../lib/settings';
 import Slider from './Slider';
 
 // The control for one adjustment: a switch or a slider, from its entry in
 // the table. Double-tapping a slider's label puts it back to its default.
 function AdjustmentControl({ adjustment: a, settings, onChange }: {
-  adjustment: Adjustment; settings: Settings; onChange: (s: Partial<Settings>) => void;
+  adjustment: Adjustment; settings: Settings; onChange: (s: Partial<Adjustments>) => void;
 }) {
   if (a.onlyWithAuto && !settings.auto) return null;
   if (a.kind === 'slider') {
@@ -51,7 +51,8 @@ export default function Controls({
   armed: boolean;
   several: boolean;
   saving: boolean;
-  onChange: (s: Partial<Settings>) => void;
+  // The switches and sliders only: the White point and the Rotation have their own
+  onChange: (s: Partial<Adjustments>) => void;
   onArm: () => void;
   onClearWhitePoint: () => void;
   onRotate: (dir: 1 | -1) => void;

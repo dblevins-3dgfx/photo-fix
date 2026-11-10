@@ -43,6 +43,12 @@ describe('Changing settings', () => {
     expect(s.photos[1].settings.warmth).toBe(30);
     expect(s.photos[0].settings.warmth).toBe(0);
   });
+  it('cannot carry the Rotation or the White point, which have actions of their own', () => {
+    // @ts-expect-error rotation is not an adjustment
+    photosReducer(withPhotos(1), { type: 'change', settings: { rotation: 90 } });
+    // @ts-expect-error nor is the White point
+    photosReducer(withPhotos(1), { type: 'change', settings: { whitePoint: null } });
+  });
   it('turning Auto off keeps its strength', () => {
     let s = photosReducer(withPhotos(1), { type: 'change', settings: { strength: 40 } });
     s = photosReducer(s, { type: 'change', settings: { auto: false } });
