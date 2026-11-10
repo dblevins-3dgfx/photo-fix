@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MAX_QUALITY, MIN_QUALITY, type Prefs } from '../lib/prefs';
+import { PREFERENCES, type Prefs } from '../lib/prefs';
 import Slider from './Slider';
 
 // The Preferences dialog (SPEC.md section 8)
@@ -22,19 +22,22 @@ export default function Preferences({ prefs, onChange, onClose }: {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold">Preferences</h2>
-        <label className="flex items-center justify-between gap-4">
-          <span>Auto on for new photos</span>
-          <input
-            type="checkbox"
-            checked={prefs.autoOnNewPhotos}
-            onChange={(e) => onChange({ ...prefs, autoOnNewPhotos: e.target.checked })}
-            className="h-5 w-5 accent-sky-600"
+        {PREFERENCES.map((p) => (p.kind === 'slider' ? (
+          <Slider
+            key={p.key} label={p.label} value={prefs[p.key]} min={p.min} max={p.max}
+            onChange={(v) => onChange({ ...prefs, [p.key]: v })}
           />
-        </label>
-        <Slider
-          label="JPEG quality" value={prefs.jpegQuality} min={MIN_QUALITY} max={MAX_QUALITY}
-          onChange={(q) => onChange({ ...prefs, jpegQuality: q })}
-        />
+        ) : (
+          <label key={p.key} className="flex items-center justify-between gap-4">
+            <span>{p.label}</span>
+            <input
+              type="checkbox"
+              checked={prefs[p.key]}
+              onChange={(e) => onChange({ ...prefs, [p.key]: e.target.checked })}
+              className="h-5 w-5 accent-sky-600"
+            />
+          </label>
+        )))}
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Photos never leave this device. Only these two preferences are kept.
         </p>
