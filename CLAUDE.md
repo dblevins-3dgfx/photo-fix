@@ -23,6 +23,7 @@ A pull request that adds or changes a rule in `SPEC.md` adds or updates the unit
 ## Before saying you are done
 
 - Run the project's checks for the files you touched (`npm run typecheck`, `npm run lint`, `npm test`).
+- Keep each function's cyclomatic complexity under 20. `npm run lint` fails a function at 20 or more (`.oxlintrc.json`), and CI fails the pull request with it. Split a growing function (one function per case, or a lookup table) rather than raising the limit.
 - If you cannot run them, say so and name the command the user should run.
 - Summarize what changed and anything you did not verify.
 

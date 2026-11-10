@@ -49,7 +49,30 @@ jobs:
         run: npm run typecheck
 
       - name: Lint
+        # Includes the complexity limit in .oxlintrc.json: a function with a
+        # cyclomatic complexity of 20 or more fails the check
         run: npm run lint
+
+      # The most complex functions, in the run's summary, so a pull request
+      # shows how close it comes to the limit. Runs even when Lint failed.
+      - name: Complexity report
+        if: always()
+        run: |
+          config="$RUNNER_TEMP/complexity.json"
+          echo '{"categories":{"correctness":"off","suspicious":"off","pedantic":"off","style":"off","nursery":"off","perf":"off","restriction":"off"},"rules":{"eslint/complexity":["error",{"max":1}]}}' > "$config"
+          npx oxlint -c "$config" --format unix src > "$RUNNER_TEMP/complexity.txt" || true
+          {
+            echo '### Cyclomatic complexity'
+            echo
+            echo 'The limit is 19 (`.oxlintrc.json`). The ten most complex functions, outside tests:'
+            echo
+            echo '| Complexity | Function | Where |'
+            echo '|---:|---|---|'
+            grep -v '\.test\.ts:' "$RUNNER_TEMP/complexity.txt" \
+              | sed -nE 's/^([^:]+):([0-9]+):[0-9]+: (.*) has a complexity of ([0-9]+).*/\4|\3|`\1:\2`/p' \
+              | sort -t'|' -k1,1 -rn | head -n 10 \
+              | awk -F'|' '{ flag = ($1 >= 20) ? " ⛔" : ""; printf "| %s%s | %s | %s |\n", $1, flag, $2, $3 }'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Test
         run: npm test
