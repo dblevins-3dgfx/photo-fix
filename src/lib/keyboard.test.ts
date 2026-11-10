@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { keyAction } from './keyboard';
+import { SHORTCUTS, keyAction, type KeyAction } from './keyboard';
 
 describe('Keyboard', () => {
   it('Ctrl+O opens, Ctrl+S saves', () => {
@@ -30,5 +30,21 @@ describe('Keyboard', () => {
     expect(keyAction({ key: 'ArrowLeft', inControl: true })).toBeNull();
     expect(keyAction({ key: 'w', inControl: true })).toBeNull();
     expect(keyAction({ key: 'Escape', inControl: true })).toBe('disarm');
+  });
+});
+
+describe('The shortcut tables', () => {
+  it('reach every action', () => {
+    const all: KeyAction[] = [
+      'open', 'save', 'previous', 'next', 'rotate-left', 'rotate-right', 'eyedropper', 'disarm', 'compare',
+      'zoom-in', 'zoom-out', 'zoom-fit',
+    ];
+    const reached = new Set([...Object.values(SHORTCUTS.withCtrl), ...Object.values(SHORTCUTS.alone)]);
+    expect([...reached].sort()).toEqual([...all].sort());
+  });
+  it('a name the browser gives that is not a key in the tables does nothing', () => {
+    expect(keyAction({ key: 'toString' })).toBeNull();
+    expect(keyAction({ key: 'constructor', ctrlKey: true })).toBeNull();
+    expect(keyAction({ key: 'Shift' })).toBeNull();
   });
 });
