@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useShortcut } from '../hooks/useShortcut';
 import { applyCorrection, buildTables, type Tables } from '../lib/correction';
+import { HOLD_MS, NO_GESTURE, gestureStep, type GestureEvent, type GestureState } from '../lib/gesture';
 import { rotatedSize, rotationTransform } from '../lib/rotation';
 import {
   FIT, PRESETS, clampView, detailSize, needsDetail, panBy, presetZoom, scaleOf, toPhoto, visibleFractions, visibleRegion,
@@ -9,10 +10,6 @@ import {
 import { regionOf, type Region } from '../detail';
 import type { Photo } from '../photo';
 
-const HOLD_MS = 350;
-const DOUBLE_TAP_MS = 300;
-// A touch that moves less than this is a tap (or a hold), not a drag
-const SLOP = 8;
 // The overview's longer side, in CSS pixels
 const OVERVIEW = 96;
 // How long the view must stay still before the part in view is redrawn from the original
@@ -181,39 +178,62 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
     return () => box.removeEventListener('wheel', wheel);
   }, [area, turned, pixelRatio]);
 
-  // Touch and mouse: tap, double-tap, hold, drag and pinch
-  const pointers = useRef(new Map<number, { x: number; y: number }>());
-  const gesture = useRef<{
-    mode: 'one' | 'pinch' | 'done';
-    start: { x: number; y: number };
-    last: { x: number; y: number };
-    moved: boolean;
-    held: boolean;
-    timer: number;
-    pinch?: { d0: number; mid0: { x: number; y: number }; view0: View };
-  } | null>(null);
-  const lastTap = useRef(0);
+  // Touch and mouse: what a press means is gestureStep's to say
+  // (lib/gesture.ts); this feeds it the pointer events and acts on its answers
+  const gesture = useRef<GestureState>(NO_GESTURE);
+  const holdTimer = useRef(0);
+  const pinchFrom = useRef(view);
+  const viewNow = useRef(view);
+  viewNow.current = view;
 
-  const local = (e: React.PointerEvent) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
-  };
-  const pinchOf = () => {
-    const [a, b] = [...pointers.current.values()];
-    return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
-  };
-  const stopHold = () => {
-    const g = gesture.current;
-    if (!g) return;
-    clearTimeout(g.timer);
-    if (g.held) {
-      g.held = false;
-      onHold(false);
+  const feed = (event: GestureEvent) => {
+    const step = gestureStep(gesture.current, event);
+    gesture.current = step.state;
+    for (const action of step.actions) {
+      switch (action.type) {
+        case 'start-hold-timer':
+          clearTimeout(holdTimer.current);
+          holdTimer.current = window.setTimeout(() => feed({ type: 'hold' }), HOLD_MS);
+          break;
+        case 'cancel-hold-timer':
+          clearTimeout(holdTimer.current);
+          break;
+        case 'hold-start':
+          onHold(true);
+          break;
+        case 'hold-end':
+          onHold(false);
+          break;
+        case 'drag':
+          setView((v) => panBy(v, action.dx, action.dy, area, turned, pixelRatio));
+          break;
+        case 'pinch-start':
+          pinchFrom.current = viewNow.current;
+          break;
+        case 'pinch': {
+          const from = pinchFrom.current;
+          const zoomed = zoomAt(from, from.zoom * action.scale, action.x, action.y, area, turned, pixelRatio);
+          setView(panBy(zoomed, action.dx, action.dy, area, turned, pixelRatio));
+          break;
+        }
+        case 'tap': {
+          // The eyedropper: where on the photo, if on it at all
+          const [u, v] = toPhoto(viewNow.current, action.x, action.y, area, turned);
+          if (u >= 0 && u <= 1 && v >= 0 && v <= 1) onTap(u, v);
+          break;
+        }
+        case 'double-tap':
+          // In to 2x around the point, or back to Fit
+          setView((v) => (v.zoom > 1.01 ? FIT : zoomAt(v, 2, action.x, action.y, area, turned, pixelRatio)));
+          break;
+      }
     }
   };
 
-  const viewNow = useRef(view);
-  viewNow.current = view;
+  const local = (e: React.PointerEvent) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return { id: e.pointerId, x: e.clientX - r.left, y: e.clientY - r.top };
+  };
 
   return (
     <div
@@ -222,79 +242,12 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId);
-        const p = local(e);
-        pointers.current.set(e.pointerId, p);
-        if (pointers.current.size === 1) {
-          const g = { mode: 'one' as const, start: p, last: p, moved: false, held: false, timer: 0 };
-          g.timer = window.setTimeout(() => {
-            g.held = true;
-            onHold(true);
-          }, HOLD_MS);
-          gesture.current = g;
-        } else if (pointers.current.size === 2) {
-          stopHold();
-          const { d, mid } = pinchOf();
-          gesture.current = {
-            mode: 'pinch', start: mid, last: mid, moved: true, held: false, timer: 0,
-            pinch: { d0: d, mid0: mid, view0: viewNow.current },
-          };
-        }
+        feed({ type: 'down', ...local(e) });
       }}
-      onPointerMove={(e) => {
-        if (!pointers.current.has(e.pointerId)) return;
-        const p = local(e);
-        pointers.current.set(e.pointerId, p);
-        const g = gesture.current;
-        if (!g) return;
-        if (g.mode === 'one') {
-          if (!g.moved && Math.hypot(p.x - g.start.x, p.y - g.start.y) > SLOP) {
-            g.moved = true;
-            if (!g.held) clearTimeout(g.timer);
-          }
-          if (g.moved && !g.held) setView((v) => panBy(v, p.x - g.last.x, p.y - g.last.y, area, turned, pixelRatio));
-          g.last = p;
-        } else if (g.mode === 'pinch' && g.pinch && pointers.current.size === 2) {
-          const { d, mid } = pinchOf();
-          const { d0, mid0, view0 } = g.pinch;
-          const zoomed = zoomAt(view0, view0.zoom * (d / d0), mid0.x, mid0.y, area, turned, pixelRatio);
-          setView(panBy(zoomed, mid.x - mid0.x, mid.y - mid0.y, area, turned, pixelRatio));
-        }
-      }}
-      onPointerUp={(e) => {
-        const p = local(e);
-        pointers.current.delete(e.pointerId);
-        const g = gesture.current;
-        if (!g) return;
-        if (g.mode === 'one' && pointers.current.size === 0) {
-          const wasHeld = g.held;
-          stopHold();
-          gesture.current = null;
-          if (wasHeld || g.moved) return;
-          if (armed) {
-            const [u, v] = toPhoto(viewNow.current, p.x, p.y, area, turned);
-            if (u >= 0 && u <= 1 && v >= 0 && v <= 1) onTap(u, v);
-            return;
-          }
-          // Double-tap: in to 2x around the point, or back to Fit
-          const now = Date.now();
-          if (now - lastTap.current < DOUBLE_TAP_MS) {
-            lastTap.current = 0;
-            setView((v) => (v.zoom > 1.01 ? FIT : zoomAt(v, 2, p.x, p.y, area, turned, pixelRatio)));
-          } else {
-            lastTap.current = now;
-          }
-        } else if (pointers.current.size === 0) {
-          gesture.current = null;
-        } else {
-          // One finger left after a pinch: nothing more until it lifts too
-          g.mode = 'done';
-        }
-      }}
-      onPointerCancel={(e) => {
-        pointers.current.delete(e.pointerId);
-        stopHold();
-        if (pointers.current.size === 0) gesture.current = null;
-      }}
+      onPointerMove={(e) => feed({ type: 'move', ...local(e) })}
+      // While the eyedropper is armed a tap samples, so it isn't half of a double-tap
+      onPointerUp={(e) => feed({ type: 'up', ...local(e), time: Date.now(), doubleTaps: !armed })}
+      onPointerCancel={(e) => feed({ type: 'cancel', id: e.pointerId })}
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
       <div className="absolute bottom-2 right-2 flex gap-1" onPointerDown={(e) => e.stopPropagation()}>
