@@ -16,15 +16,16 @@ export const saving = (n: number, total: number) => (total > 1 ? `Saving ${n} of
 
 // What a save did, by where it went (section 7, Where it goes): the Save
 // dialog saved it, the share sheet shared it (Photo Fix can't tell whether
-// it went to Photos, Files or a message), and a download was only started
+// it went to Photos, Files or a message), and a download was only started.
+// The method is always named: nothing is called saved by default.
 const VERB: Record<SaveMethod, string> = { dialog: 'Saved', share: 'Shared', download: 'Downloaded' };
 export const LOOK_IN_DOWNLOADS = 'Look in your Downloads folder';
 
-export function savedSmaller(width: number, height: number, origWidth: number, origHeight: number, method: SaveMethod = 'dialog') {
+export function savedSmaller(width: number, height: number, origWidth: number, origHeight: number, method: SaveMethod) {
   return `${VERB[method]} at ${width} x ${height}, smaller than the ${origWidth} x ${origHeight} scan, the most this device can save`;
 }
 
-export function saved(names: readonly string[], method: SaveMethod = 'dialog') {
+export function saved(names: readonly string[], method: SaveMethod) {
   return names.length === 1 ? `${VERB[method]} ${names[0]}` : `${VERB[method]} ${names.length} photos`;
 }
 

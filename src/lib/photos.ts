@@ -3,6 +3,7 @@
 // setting, Reset, Apply to all, rotating and the White point. Each photo's
 // pixels ride along in `T`; this only touches the list and the settings.
 
+import type { Adjustments } from './adjustments';
 import { defaultSettings, rotate, sharedSettings, type Gains, type Settings } from './settings';
 
 export interface OpenPhoto {
@@ -22,7 +23,8 @@ export type PhotosAction<T extends OpenPhoto> =
   | { type: 'select'; index: number }
   | { type: 'step'; by: 1 | -1 }
   | { type: 'close'; id: number }
-  | { type: 'change'; settings: Partial<Omit<Settings, 'rotation' | 'whitePoint'>> }
+  // The White point and the Rotation have actions of their own below
+  | { type: 'change'; settings: Partial<Adjustments> }
   | { type: 'reset'; autoOn: boolean }
   | { type: 'apply-to-all' }
   | { type: 'rotate'; dir: 1 | -1 }

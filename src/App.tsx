@@ -7,7 +7,7 @@ import { useShortcut } from './hooks/useShortcut';
 import { useStatus } from './hooks/useStatus';
 import { emptyPhotos, photosReducer, type PhotosAction, type PhotosState } from './lib/photos';
 import type { Prefs } from './lib/prefs';
-import type { Settings } from './lib/settings';
+import type { Adjustments } from './lib/adjustments';
 import type { Photo } from './photo';
 import { PREVIEW, loadPrefs, savePrefs } from './storage';
 import Controls from './ui/Controls';
@@ -56,7 +56,7 @@ export default function App() {
   useShortcut('rotate-right', withPhoto(() => dispatch({ type: 'rotate', dir: 1 })));
   useShortcut('compare', withPhoto(() => setComparing(true)), () => setComparing(false));
 
-  const change = (s: Partial<Settings>) => dispatch({ type: 'change', settings: s });
+  const change = (s: Partial<Adjustments>) => dispatch({ type: 'change', settings: s });
 
   const openButton = (big = false) => (
     <button

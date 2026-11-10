@@ -7,7 +7,10 @@
 import type { Field } from './fields';
 import type { Settings } from './settings';
 
-export type Adjustment = Field<keyof Settings> & {
+// The settings an adjustment can be: all but the White point and the Rotation
+export type AdjustableKey = Exclude<keyof Settings, 'whitePoint' | 'rotation'>;
+
+export type Adjustment = Field<AdjustableKey> & {
   // Where its control goes: with Auto, or with the sliders below the White point
   group: 'auto' | 'tone';
   // Shown only while Auto is on
@@ -37,7 +40,7 @@ export type Adjustments = Pick<Settings, AdjustmentKey>;
 
 // A setting left out of the table (or one in it that shouldn't be) fails
 // the typecheck here
-type Missing = Exclude<keyof Settings, AdjustmentKey | 'whitePoint' | 'rotation'>;
+type Missing = Exclude<AdjustableKey, AdjustmentKey>;
 const covered: [Missing] extends [never] ? true : never = true;
 void covered;
 
