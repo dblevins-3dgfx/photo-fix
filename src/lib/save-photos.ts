@@ -29,7 +29,7 @@ export interface Destination<B> {
   // Asks where to put the files, before anything is rendered, given the
   // names they would get. Null when the user cancels. A folder answers
   // with the names already in it (`taken`), which new files must not
-  // replace; the others leave it out.
+  // replace; the others have none.
   prepare(names: readonly string[]): Promise<{ taken?: readonly string[] } | null>;
   // Takes one rendered file; answers with the name it went under
   deliver(blob: B, name: string): Promise<string>;
@@ -66,19 +66,17 @@ export async function savePhotos<P extends { name: string }, B>(
   const prepared = await destination.prepare(photos.map((p) => fixedName(p.name)));
   if (!prepared) return { outcome, cancelled: true };
 
-  const taken = prepared.taken ? [...prepared.taken] : null;
+  const taken = [...(prepared.taken ?? [])];
   const delivered: string[] = [];
   for (const [i, photo] of photos.entries()) {
     progress(i + 1, photos.length);
     let name = fixedName(photo.name);
     try {
       const r = await render(photo);
-      if (taken) {
-        // A name already in the folder is not replaced: the number goes up
-        // until it is free, counting the names saved before it
-        name = freeName(name, taken);
-        taken.push(name);
-      }
+      // No two files of one save get the same name, and a name already in
+      // the folder is not replaced: the number goes up until it is free
+      name = freeName(name, taken);
+      taken.push(name);
       name = await destination.deliver(r.blob, name);
       delivered.push(name);
       if (r.scaled) outcome.smaller.push({ name, width: r.width, height: r.height, origWidth: r.origWidth, origHeight: r.origHeight });

@@ -114,15 +114,23 @@ describe('A name already in the folder', () => {
     expect(Object.keys(d.files)).toEqual(['a-fixed (3).jpg']);
   });
   it('counts names saved earlier in the same Save all', async () => {
-    const d = fake({ taken: [] });
+    const d = fake({ taken: ['b-fixed.jpg'] });
     const r = await savePhotos([photo('a.png'), photo('a.jpg'), photo('A.webp')], render, d.destination, noProgress);
     expect(r.outcome.saved).toEqual(['a-fixed.jpg', 'a-fixed (2).jpg', 'A-fixed (3).jpg']);
   });
-  it('a destination that is not a folder gets the names as they are', async () => {
-    const seen: string[] = [];
-    const d = fake({ method: 'share', deliver: async (_blob, name) => { seen.push(name); return name; } });
-    await savePhotos([photo('a.png'), photo('a.jpg')], render, d.destination, noProgress);
-    expect(seen).toEqual(['a-fixed.jpg', 'a-fixed.jpg']);
+  it('the share sheet and downloads number them too: no two files of one Save all share a name', async () => {
+    for (const method of ['share', 'download'] as const) {
+      const d = fake({ method });
+      const r = await savePhotos([photo('a.png'), photo('a.jpg'), photo('b.jpg')], render, d.destination, noProgress);
+      expect(Object.keys(d.files)).toEqual(['a-fixed.jpg', 'a-fixed (2).jpg', 'b-fixed.jpg']);
+      expect(r.outcome.saved).toEqual(['a-fixed.jpg', 'a-fixed (2).jpg', 'b-fixed.jpg']);
+    }
+  });
+  it('a photo that fails to render does not use up a name', async () => {
+    const d = fake({ method: 'share' });
+    const failing = async (p: { name: string }) => { if (p.name === 'a.png') throw new Error('bad'); return render(p); };
+    const r = await savePhotos([photo('a.png'), photo('a.jpg')], failing, d.destination, noProgress);
+    expect(r.outcome.saved).toEqual(['a-fixed.jpg']);
   });
 });
 
