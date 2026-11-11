@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SHORTCUTS, keyAction, type KeyAction } from './keyboard';
+import { SHORTCUTS, keyAction, swallowed, type KeyAction } from './keyboard';
 
 describe('Keyboard', () => {
   it('Ctrl+O opens, Ctrl+S saves', () => {
@@ -46,5 +46,21 @@ describe('The shortcut tables', () => {
     expect(keyAction({ key: 'toString' })).toBeNull();
     expect(keyAction({ key: 'constructor', ctrlKey: true })).toBeNull();
     expect(keyAction({ key: 'Shift' })).toBeNull();
+  });
+});
+
+describe('Keyboard behind a dialog', () => {
+  it('no key is a shortcut while a dialog is open, Escape included', () => {
+    for (const key of [...Object.keys(SHORTCUTS.alone), 'Escape']) expect(keyAction({ key, modal: true })).toBeNull();
+    expect(keyAction({ key: 's', ctrlKey: true, modal: true })).toBeNull();
+    expect(keyAction({ key: 'o', metaKey: true, modal: true })).toBeNull();
+  });
+  it('Ctrl+S and Ctrl+O are kept from the browser then, and nothing else is', () => {
+    expect(swallowed({ key: 's', ctrlKey: true, modal: true })).toBe(true);
+    expect(swallowed({ key: 'O', metaKey: true, modal: true })).toBe(true);
+    expect(swallowed({ key: 's', ctrlKey: true })).toBe(false);
+    expect(swallowed({ key: 'p', ctrlKey: true, modal: true })).toBe(false);
+    expect(swallowed({ key: 'ArrowLeft', modal: true })).toBe(false);
+    expect(swallowed({ key: 's', ctrlKey: true, altKey: true, modal: true })).toBe(false);
   });
 });

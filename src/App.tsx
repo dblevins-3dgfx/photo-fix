@@ -1,11 +1,12 @@
 import { ImagePlus, Settings as Gear } from 'lucide-react';
-import { useCallback, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { useEyedropper } from './hooks/useEyedropper';
 import { useOpenPhotos } from './hooks/useOpenPhotos';
 import { useSaving } from './hooks/useSaving';
 import { useShortcut } from './hooks/useShortcut';
 import { useStatus } from './hooks/useStatus';
 import { emptyPhotos, photosReducer, type PhotosAction, type PhotosState } from './lib/photos';
+import { NOT_COMPARING, compareWith, isComparing, type CompareSource, type Comparing } from './lib/compare';
 import type { Prefs } from './lib/prefs';
 import type { Adjustments } from './lib/adjustments';
 import type { Photo } from './photo';
@@ -26,7 +27,8 @@ const coarsePointer = () => window.matchMedia?.('(pointer: coarse)').matches ?? 
 export default function App() {
   const [state, dispatch] = useReducer(reducer, undefined, emptyPhotos<Photo>);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
-  const [comparing, setComparing] = useState(false);
+  const [held, setHeld] = useState<Comparing>(NOT_COMPARING);
+  const comparing = isComparing(held);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const photo = state.current >= 0 ? state.photos[state.current] : null;
 
@@ -54,7 +56,20 @@ export default function App() {
   useShortcut('next', withPhoto(() => dispatch({ type: 'step', by: 1 })));
   useShortcut('rotate-left', withPhoto(() => dispatch({ type: 'rotate', dir: -1 })));
   useShortcut('rotate-right', withPhoto(() => dispatch({ type: 'rotate', dir: 1 })));
-  useShortcut('compare', withPhoto(() => setComparing(true)), () => setComparing(false));
+  // Compare, while any of its three is held (lib/compare.ts)
+  const compare = (source: CompareSource) => (on: boolean) => setHeld((c) => compareWith(c, source, on));
+  useShortcut('compare', withPhoto(() => compare('key')(true)), () => compare('key')(false));
+  // A key let go of in another window never comes back up here
+  useEffect(() => {
+    const letGo = () => setHeld(NOT_COMPARING);
+    const hidden = () => document.hidden && letGo();
+    window.addEventListener('blur', letGo);
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('blur', letGo);
+      document.removeEventListener('visibilitychange', hidden);
+    };
+  }, []);
 
   const change = (s: Partial<Adjustments>) => dispatch({ type: 'change', settings: s });
 
@@ -104,7 +119,7 @@ export default function App() {
             {/* On a narrow screen the photo keeps its height, and a long
                 message pushes the strip and controls down */}
             <div className="photo-area h-[42dvh] shrink-0 overflow-hidden min-[900px]:h-auto min-[900px]:min-h-0 min-[900px]:flex-1 min-[900px]:shrink">
-              <PhotoView photo={photo} comparing={comparing} armed={eyedropper.armed} onTap={eyedropper.sample} onHold={setComparing} />
+              <PhotoView photo={photo} comparing={comparing} armed={eyedropper.armed} onTap={eyedropper.sample} onHold={compare('photo')} />
             </div>
             {/* The status line wraps, so a long message is never cut off */}
             <div className="flex min-h-8 items-center gap-3 px-3 py-1 text-sm" aria-live="polite">
@@ -131,7 +146,7 @@ export default function App() {
             onRotate={(dir) => dispatch({ type: 'rotate', dir })}
             onReset={() => dispatch({ type: 'reset', autoOn: prefs.autoOnNewPhotos })}
             onApplyToAll={() => dispatch({ type: 'apply-to-all' })}
-            onCompare={setComparing}
+            onCompare={compare('button')}
             onSave={() => void save([photo])}
             onSaveAll={() => void save(state.photos)}
             className="min-h-0 flex-1 overflow-y-auto min-[900px]:col-start-2 min-[900px]:row-span-2 min-[900px]:row-start-1 min-[900px]:border-l min-[900px]:border-slate-200 dark:min-[900px]:border-slate-700"
