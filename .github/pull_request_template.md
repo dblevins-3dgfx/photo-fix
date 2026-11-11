@@ -12,4 +12,4 @@ Open questions opened or resolved here (by number, Q1, Q2, ...), if any:
 
 - [ ] Every spec rule added or changed here has a unit test, or a row in `untested-requirements.md` saying why not.
 - [ ] Rows in `untested-requirements.md` whose rules gained a test here are removed.
-- [ ] No function has a cyclomatic complexity of 20 or more (`npm run lint`; the run's summary lists the most complex).
+- [ ] No function has a cyclomatic complexity of 16 or more (`npm run lint`; the run's summary lists the most complex).

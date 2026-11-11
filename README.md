@@ -40,5 +40,5 @@ Changes go through pull requests: see `CLAUDE.md` for the rules (keep `SPEC.md` 
 | `npm run build` | Build for production into `dist/` |
 | `npm run preview` | Serve the production build |
 | `npm run typecheck` | Check the types |
-| `npm run lint` | Lint (oxlint; warnings fail, and so does any function with a cyclomatic complexity of 20 or more) |
+| `npm run lint` | Lint (oxlint; warnings fail, and so does any function with a cyclomatic complexity of 16 or more) |
 | `npm test` | Run the unit tests |
