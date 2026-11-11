@@ -34,7 +34,7 @@ export default function App() {
 
   const status = useStatus(photo?.id);
   const add = useCallback((photos: Photo[]) => dispatch({ type: 'add', photos }), []);
-  const { pick, inputProps } = useOpenPhotos(state.photos, add, prefs.autoOnNewPhotos, status);
+  const { pick, inputProps, text: openingLine } = useOpenPhotos(state.photos, add, prefs.autoOnNewPhotos, status);
   const { busy, text: savingLine, save, canShareNow, shareNow } = useSaving(prefs.jpegQuality, status);
   const eyedropper = useEyedropper(photo, (gains) => dispatch({ type: 'white-point', gains }), status);
   const { message } = status;
@@ -111,6 +111,7 @@ export default function App() {
           </p>
           {openButton(true)}
           {!coarsePointer() && <p className="text-sm text-slate-500 dark:text-slate-400">Or drop photos here, or paste one.</p>}
+          {openingLine && <p className="text-sm text-slate-600 dark:text-slate-300">{openingLine}</p>}
           {message && <p className="max-w-md text-sm text-red-700 dark:text-red-300">{message}</p>}
         </main>
       ) : (
@@ -123,7 +124,7 @@ export default function App() {
             </div>
             {/* The status line wraps, so a long message is never cut off */}
             <div className="flex min-h-8 items-center gap-3 px-3 py-1 text-sm" aria-live="polite">
-              <span className="min-w-0 flex-1 break-words">{savingLine ?? message ?? ''}</span>
+              <span className="min-w-0 flex-1 break-words">{savingLine ?? openingLine ?? message ?? ''}</span>
               {canShareNow && (
                 <button type="button" onClick={shareNow} className="shrink-0 rounded-lg bg-sky-600 px-3 py-1 text-white">Share</button>
               )}
