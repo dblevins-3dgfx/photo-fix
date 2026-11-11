@@ -18,7 +18,7 @@ Everything happens on the device. Photos are read from files you choose, process
 | Icons | lucide-react |
 | Image work | Decoding with `createImageBitmap`; pixels read and written as `ImageData` on a canvas; full-size processing and encoding in a Web Worker with `OffscreenCanvas`, so the screen stays responsive. The pixel math lives in `src/lib` as plain functions on `Uint8ClampedArray`s |
 | Tests | Vitest (`npm test`), unit tests in `src/lib/*.test.ts` |
-| Checks | `npm run typecheck` (tsc), `npm run lint` (oxlint, warnings are errors), `npm test` |
+| Checks | `npm run typecheck` (tsc), `npm run lint` (oxlint, warnings are errors), `npm test`. The linter also limits each function's cyclomatic complexity to 19 (`.oxlintrc.json`): a function at 20 or more fails it |
 | Persistence | Preferences only, in localStorage under keys starting `photo-fix.` (section 8). Photos are never stored |
 | Home screen | Installable: `public/manifest.webmanifest` names it Photo Fix and opens it full screen (`standalone`), with 192 and 512 px icons; `index.html` adds Apple's tags (180 x 180 `apple-touch-icon.png`, full-screen capable, the title, status bar style). On an iPhone: Safari, Share, Add to Home Screen. Opened from the home screen it keeps its own storage, separate from Safari's |
 | Offline | A service worker (`sw.js`, beside the page, so a preview's covers only its own folder) caches every published file on the first visit; the build writes the list into it. Later visits open without the network: the page is fetched from the network first and from the cache when offline, everything else from the cache. A new version is picked up on the next visit after it is published, and the old version's cache is then deleted |
@@ -304,7 +304,8 @@ Still to think about: dust and scratch removal; restoring a black-and-white phot
 
 ## 10. Publishing
 
-- **Checks:** `.github/workflows/deploy.yml` runs the typecheck, the linter and the unit tests on every push to any branch, so a failure shows before a pull request is opened, and on every pull request, including one from a fork. Nothing is published unless they pass.
+- **Checks:** `.github/workflows/deploy.yml` runs the typecheck, the linter (with its complexity limit, section 2) and the unit tests on every push to any branch, so a failure shows before a pull request is opened, and on every pull request, including one from a fork. Nothing is published unless they pass.
+- **Complexity report:** each run's summary on GitHub lists the ten most complex functions outside the tests, with the limit, and marks any at 20 or more. It is written even when the linter fails, so a pull request shows how close it comes.
 - **Publishing:** after the checks pass on `main` or on a pull request from this repository, it builds and publishes to GitHub Pages from the `gh-pages` branch. A push to another branch is checked but not published.
 - **`main`** is the live app: `https://dblevins-3dgfx.github.io/photo-fix/`.
 - **Each pull request** from this repository gets a preview at `https://dblevins-3dgfx.github.io/photo-fix/pr-preview/pr-<number>/`, linked from one comment on the pull request that is kept up to date. The link changes with each push (`?v=<commit>`) so it always opens the newest build. Each push rebuilds the preview; closing or merging the pull request removes it. A pull request from a fork gets the checks but no preview.
