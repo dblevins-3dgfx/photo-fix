@@ -182,7 +182,7 @@ Cropping is an open question (**Q6**).
   - a download: "Downloaded Grandma 1962-fixed.jpg. Look in your Downloads folder", "Downloaded 5 photos. Look in your Downloads folder".
 
   A photo saved smaller than its scan says so with the same word ("Shared at 4000 x 4194, smaller than the 4800 x 5033 scan, the most this device can save"); for Save all, the line adds how many are smaller than their scans ("Saved 5 photos. 2 are smaller than their scans, the most this device can save").
-- **Errors:** if saving fails, the status line says which file failed ("Couldn't save Grandma 1962-fixed.jpg"), ahead of what was saved; the others still save.
+- **Errors:** if saving fails, the status line says which file failed ("Couldn't save Grandma 1962-fixed.jpg"), ahead of what was saved; the others still save. A photo also fails if the Web Worker stops before it is done (the browser can stop it for using too much memory, or it can fail to load), or if it takes longer than 3 minutes; the next photo starts a fresh worker. So a save always ends, and Save and Save all come back.
 - The open photos and their settings are kept after saving.
 
 ## 8. Preferences
