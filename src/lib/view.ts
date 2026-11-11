@@ -122,3 +122,16 @@ export function detailSize(region: Size, scale: number, pixelRatio: number): Siz
     height: Math.max(1, Math.min(region.height, Math.round(region.height * scale * pixelRatio))),
   };
 }
+
+// The sharper part drawn over the preview, kept only while it is for the
+// current photo and the view still needs it: zoomed back out to where the
+// preview is sharp enough, or on another photo, it goes, and its memory
+// with it
+export function detailToKeep<D extends { photoId: number }>(detail: D | null, photoId: number, needed: boolean): D | null {
+  return detail && detail.photoId === photoId && needed ? detail : null;
+}
+
+// Whether the worker keeps the decoded original it holds for zooming
+// (`keptId`'s): only while that photo is still open. A save lets it go
+// whatever is open, by passing none.
+export const keepsOriginal = (keptId: number, open: readonly number[]) => open.includes(keptId);

@@ -5,7 +5,7 @@ import { HOLD_MS, NO_GESTURE, gestureStep, type GestureEvent, type GestureState 
 import { tapOnPhoto, viewAfter } from '../lib/view-gestures';
 import { rotatedSize, rotationTransform } from '../lib/rotation';
 import {
-  FIT, PRESETS, clampView, detailSize, needsDetail, panBy, presetZoom, scaleOf, visibleFractions, visibleRegion,
+  FIT, PRESETS, clampView, detailSize, detailToKeep, needsDetail, panBy, presetZoom, scaleOf, visibleFractions, visibleRegion,
   zoomAt, type Size, type View,
 } from '../lib/view';
 import { regionOf, type Region } from '../detail';
@@ -61,9 +61,8 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
   const turned = useMemo(() => rotatedSize(photo.width, photo.height, rotation), [photo.width, photo.height, rotation]);
   const tables = useMemo(() => buildTables(settings, stats), [settings, stats]);
 
-  // Fit again on another photo or a turn; the part redrawn from another photo goes
+  // Fit again on another photo or a turn
   useEffect(() => setView(FIT), [photo.id, rotation]);
-  useEffect(() => setDetail((d) => (d && d.photoId !== photo.id ? null : d)), [photo.id]);
 
   // The area's size, and the screen's pixel density
   useLayoutEffect(() => {
@@ -133,10 +132,13 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
     }
   }, [area, pixelRatio, view, turned, original, rotation, previewStage, detailStage, detail]);
 
-  // Sharpness: once the view has settled zoomed in past the preview, ask for the part in view from the original
+  // Sharpness: once the view has settled zoomed in past the preview, ask
+  // for the part in view from the original. Zoomed back out, or on another
+  // photo, the part redrawn goes (detailToKeep).
+  const needed = area.width > 0 && needsDetail(view, area, turned, pixelRatio, preview.width / original.width);
+  useEffect(() => setDetail((d) => detailToKeep(d, photo.id, needed)), [photo.id, needed]);
   useEffect(() => {
-    if (area.width === 0) return;
-    if (!needsDetail(view, area, turned, pixelRatio, preview.width / original.width)) return;
+    if (!needed) return;
     let current = true;
     const timer = setTimeout(() => {
       const region = visibleRegion(view, area, original, rotation, turned);
@@ -149,7 +151,7 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
       current = false;
       clearTimeout(timer);
     };
-  }, [view, area, turned, original, rotation, pixelRatio, preview.width, photo.id, photo.file]);
+  }, [needed, view, area, turned, original, rotation, pixelRatio, photo.id, photo.file]);
 
   // Zooming by the keyboard and the presets, toward the middle
   const zoomTo = useCallback(

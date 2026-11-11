@@ -9,6 +9,7 @@ import { useReducer, useRef } from 'react';
 import * as words from '../lib/messages';
 import { finishPending, savePhotos, type Destination, type SaveResult } from '../lib/save-photos';
 import { IDLE, isBusy, savingReducer, savingText, showsShare, type SavingEvent, type SavingState } from '../lib/saving';
+import { releaseOriginal } from '../detail';
 import type { Photo } from '../photo';
 import { destinationFor, renderPhoto } from '../save';
 import type { Status } from './useStatus';
@@ -43,6 +44,8 @@ export function useSaving(quality: number, status: Status) {
     // The result goes on the photo that was current when the save began
     const photoId = status.photoId();
     send({ type: 'start' });
+    // The zoom's decoded original goes first: a large scan's save needs the memory
+    releaseOriginal([]);
     try {
       const destination = destinationFor(photos.length > 1);
       const result = await savePhotos(

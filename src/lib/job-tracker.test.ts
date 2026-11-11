@@ -59,7 +59,7 @@ describe('jobTracker', () => {
     expect(settled).toEqual([[1, { ok: false, error: STOPPED }]]);
   });
 
-  it('gives a save three minutes and a region one', () => {
-    expect(TIME_LIMIT_MS).toEqual({ save: 180_000, region: 60_000 });
+  it('gives a save three minutes, and a region or a release one', () => {
+    expect(TIME_LIMIT_MS).toEqual({ save: 180_000, region: 60_000, release: 60_000 });
   });
 });

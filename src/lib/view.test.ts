@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FIT, MARGIN, clampView, detailSize, fitScale, maxZoom, needsDetail, panBy, presetZoom, toPhoto, visibleFractions,
+  FIT, MARGIN, clampView, detailSize, detailToKeep, fitScale, keepsOriginal, maxZoom, needsDetail, panBy, presetZoom, toPhoto, visibleFractions,
   visibleRegion, zoom100, zoomAt,
 } from './view';
 
@@ -109,5 +109,33 @@ describe('Sharpness', () => {
   it('at the screen pixels the region covers, never more than the original has', () => {
     expect(detailSize({ width: 1000, height: 800 }, 0.4, 2)).toEqual({ width: 800, height: 640 });
     expect(detailSize({ width: 100, height: 80 }, 4, 2)).toEqual({ width: 100, height: 80 });
+  });
+});
+
+describe('Which sharper part to keep', () => {
+  const patch = { photoId: 7, pixels: 'a screenful' };
+  it('keeps it while it is for the current photo and the view needs it', () => {
+    expect(detailToKeep(patch, 7, true)).toBe(patch);
+  });
+  it('drops it when zoomed back out to where the preview is sharp enough', () => {
+    expect(detailToKeep(patch, 7, false)).toBeNull();
+  });
+  it('drops it on another photo, the one it was for closed or not', () => {
+    expect(detailToKeep(patch, 8, true)).toBeNull();
+  });
+  it('has nothing to keep when there is none', () => {
+    expect(detailToKeep(null, 7, true)).toBeNull();
+  });
+});
+
+describe('Which decoded original the worker keeps for zooming', () => {
+  it('keeps it while its photo is open', () => {
+    expect(keepsOriginal(3, [1, 3, 5])).toBe(true);
+  });
+  it('lets it go once its photo is closed', () => {
+    expect(keepsOriginal(3, [1, 5])).toBe(false);
+  });
+  it('lets it go before a save, which passes no photos', () => {
+    expect(keepsOriginal(3, [])).toBe(false);
   });
 });
