@@ -1,13 +1,16 @@
 import { useEffect } from 'react';
+import { useModal } from '../hooks/useShortcut';
 import { PREFERENCES, type Prefs } from '../lib/prefs';
 import Slider from './Slider';
 
-// The Preferences dialog (SPEC.md section 8)
+// The Preferences dialog (SPEC.md section 8). While it is open no key is a
+// shortcut, so Escape only closes it.
 export default function Preferences({ prefs, onChange, onClose }: {
   prefs: Prefs;
   onChange: (p: Prefs) => void;
   onClose: () => void;
 }) {
+  useModal();
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', key);

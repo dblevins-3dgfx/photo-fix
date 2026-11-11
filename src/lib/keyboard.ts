@@ -11,6 +11,8 @@ export interface KeyPress {
   altKey?: boolean;
   // A key typed into a text field, a slider or another control isn't a shortcut
   inControl?: boolean;
+  // A dialog is open: no key is a shortcut, Escape only closes the dialog
+  modal?: boolean;
 }
 
 // The keys pressed with Ctrl (or ⌘ on a Mac keyboard), lowercased
@@ -42,10 +44,19 @@ export const SHORTCUTS = { withCtrl: WITH_CTRL, alone: ALONE };
 const lookUp = (table: Readonly<Record<string, KeyAction>>, key: string) =>
   Object.hasOwn(table, key) ? table[key] : null;
 
+const withCtrl = (k: KeyPress) => !!(k.ctrlKey || k.metaKey) && !k.altKey;
+
 export function keyAction(k: KeyPress): KeyAction | null {
-  if ((k.ctrlKey || k.metaKey) && !k.altKey) return lookUp(WITH_CTRL, k.key.toLowerCase());
+  if (k.modal) return null;
+  if (withCtrl(k)) return lookUp(WITH_CTRL, k.key.toLowerCase());
   // Escape disarms even from a control; nothing else is a shortcut there
   if (k.key === 'Escape') return 'disarm';
   if (k.inControl || k.altKey) return null;
   return lookUp(ALONE, k.key);
 }
+
+// A key the browser mustn't have while a dialog is open: Ctrl+S and Ctrl+O
+// do nothing then, rather than saving the page or opening a file in place
+// of it
+export const swallowed = (k: KeyPress) =>
+  !!k.modal && withCtrl(k) && lookUp(WITH_CTRL, k.key.toLowerCase()) !== null;
