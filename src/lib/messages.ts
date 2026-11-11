@@ -12,6 +12,9 @@ export function unsupported(names: readonly string[]) {
     : `${names.length} files couldn't be opened (${list}): their format isn't supported. Try JPEG or PNG instead.`;
 }
 
+// While photos open (section 3): which one of how many
+export const opening = (n: number, total: number) => (total > 1 ? `Opening ${n} of ${total}` : 'Opening');
+
 export const saving = (n: number, total: number) => (total > 1 ? `Saving ${n} of ${total}` : 'Saving');
 
 // What a save did, by where it went (section 7, Where it goes): the Save

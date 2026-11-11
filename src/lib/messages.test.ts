@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EYEDROPPER, TOO_DARK, readyToShare, saveFailed, saveResult, saved, savedSmaller, saving, unsupported } from './messages';
+import { EYEDROPPER, TOO_DARK, opening, readyToShare, saveFailed, saveResult, saved, savedSmaller, saving, unsupported } from './messages';
 
 describe('Status line', () => {
   it('the eyedropper', () => {
@@ -73,5 +73,12 @@ describe('When Safari wants another tap', () => {
   it('asks for a tap on Share', () => {
     expect(readyToShare(1)).toBe('Ready to save. Tap Share');
     expect(readyToShare(3)).toBe('3 photos ready to save. Tap Share');
+  });
+});
+
+describe('Opening', () => {
+  it('names which photo of how many, or just "Opening" for one', () => {
+    expect(opening(2, 5)).toBe('Opening 2 of 5');
+    expect(opening(1, 1)).toBe('Opening');
   });
 });

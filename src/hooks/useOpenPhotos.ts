@@ -1,34 +1,47 @@
 // Opening photos (SPEC.md section 3): the file picker, a drop, a paste and
-// Ctrl+O. Each file is decoded (src/photo.ts) and handed to `add`; the ones
-// the browser can't decode are named on the status line.
+// Ctrl+O. Each file is decoded (src/photo.ts) and handed to `add` as soon
+// as it is ready, one at a time and in the order opened (lib/opening.ts),
+// with "Opening 2 of 5" meanwhile; the ones the browser can't decode are
+// named on the status line.
 
-import { useCallback, useEffect, useRef, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import * as words from '../lib/messages';
+import { NOT_OPENING, openingText, queued, serialQueue, stepped } from '../lib/opening';
 import { previewLongSide } from '../lib/sizes';
 import { openPhoto, type Photo } from '../photo';
 import type { Status } from './useStatus';
 import { useShortcut } from './useShortcut';
 
 let nextId = 1;
+// One open at a time, across the app
+const inTurn = serialQueue();
 
 export function useOpenPhotos(photos: readonly Photo[], add: (photos: Photo[]) => void, autoOn: boolean, status: Status) {
   const input = useRef<HTMLInputElement>(null);
   const pick = useCallback(() => input.current?.click(), []);
 
-  const openFiles = useCallback(async (files: Iterable<File>) => {
-    const previewMax = previewLongSide(screen.width, screen.height, window.devicePixelRatio || 1);
-    const opened: Photo[] = [];
-    const failed: string[] = [];
-    for (const file of files) {
-      try {
-        opened.push(await openPhoto(file, nextId++, autoOn, previewMax));
-      } catch {
-        failed.push(file.name || 'A pasted file');
+  const [progress, setProgress] = useState(NOT_OPENING);
+
+  const openFiles = useCallback((files: readonly File[]) => {
+    if (files.length === 0) return Promise.resolve();
+    setProgress((p) => queued(p, files.length));
+    return inTurn(async () => {
+      const previewMax = previewLongSide(screen.width, screen.height, window.devicePixelRatio || 1);
+      let first: number | undefined;
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          const photo = await openPhoto(file, nextId++, autoOn, previewMax);
+          first ??= photo.id;
+          add([photo]);
+        } catch {
+          failed.push(file.name || 'A pasted file');
+        }
+        setProgress(stepped);
       }
-    }
-    add(opened);
-    // Shown on the photo that will be current
-    if (failed.length > 0) status.show(words.unsupported(failed), status.photoId() ?? opened[0]?.id);
+      // Shown on the photo that is current
+      if (failed.length > 0) status.show(words.unsupported(failed), status.photoId() ?? first);
+    });
   }, [add, autoOn, status.show, status.photoId]);
 
   // Thumbnails' blob URLs go when their photo closes
@@ -74,5 +87,5 @@ export function useOpenPhotos(photos: readonly Photo[], add: (photos: Photo[]) =
       void openFiles(files);
     },
   };
-  return { pick, inputProps };
+  return { pick, inputProps, text: openingText(progress) };
 }
