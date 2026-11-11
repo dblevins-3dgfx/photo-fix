@@ -209,7 +209,7 @@ jobs:
           if [ "$CLOSED" = true ]; then
             body=$(printf '%s\n**Preview removed:** the pull request is closed.' "$marker")
           else
-            body=$(printf '%s\n**Preview:** %s\n\nBuilt from %s. GitHub Pages can take a minute or two to update; the link changes with each push, so it always opens the newest build. The preview keeps its own preferences, copied from the live app the first time it opens.' "$marker" "$url" "${HEAD_SHA::7}")
+            body=$(printf '%s\n**Preview:** %s\n\nBuilt from %s. GitHub Pages usually takes three or four minutes to update, and shows 404 until then; the link changes with each push, so it always opens the newest build. The preview keeps its own preferences, copied from the live app the first time it opens.' "$marker" "$url" "${HEAD_SHA::7}")
           fi
           id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
             --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
