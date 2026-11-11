@@ -35,7 +35,7 @@ export default function App() {
   const status = useStatus(photo?.id);
   const add = useCallback((photos: Photo[]) => dispatch({ type: 'add', photos }), []);
   const { pick, inputProps } = useOpenPhotos(state.photos, add, prefs.autoOnNewPhotos, status);
-  const { progress, save, canShareNow, shareNow } = useSaving(prefs.jpegQuality, status);
+  const { busy, text: savingLine, save, canShareNow, shareNow } = useSaving(prefs.jpegQuality, status);
   const eyedropper = useEyedropper(photo, (gains) => dispatch({ type: 'white-point', gains }), status);
   const { message } = status;
 
@@ -123,7 +123,7 @@ export default function App() {
             </div>
             {/* The status line wraps, so a long message is never cut off */}
             <div className="flex min-h-8 items-center gap-3 px-3 py-1 text-sm" aria-live="polite">
-              <span className="min-w-0 flex-1 break-words">{progress ?? message ?? ''}</span>
+              <span className="min-w-0 flex-1 break-words">{savingLine ?? message ?? ''}</span>
               {canShareNow && (
                 <button type="button" onClick={shareNow} className="shrink-0 rounded-lg bg-sky-600 px-3 py-1 text-white">Share</button>
               )}
@@ -139,7 +139,7 @@ export default function App() {
             settings={photo.settings}
             armed={eyedropper.armed}
             several={state.photos.length > 1}
-            saving={progress !== null}
+            saving={busy}
             onChange={change}
             onArm={eyedropper.toggle}
             onClearWhitePoint={() => dispatch({ type: 'white-point', gains: null })}
