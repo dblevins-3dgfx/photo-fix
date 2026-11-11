@@ -1,5 +1,5 @@
-const PRECACHE = ["./","./apple-touch-icon.png","./assets/index-BPt9yv34.css","./assets/index-N71gxFCu.js","./assets/worker-Dhgu95go.js","./icon-192.png","./icon-512.png","./icon.svg","./manifest.webmanifest"];
-const VERSION = "1w89mjq";
+const PRECACHE = ["./","./apple-touch-icon.png","./assets/index-8XJUhZ6N.css","./assets/index-DbhNCLzS.js","./assets/worker-Dhgu95go.js","./icon-192.png","./icon-512.png","./icon.svg","./manifest.webmanifest"];
+const VERSION = "1ycx8an";
 function cacheName(scopePath, version) {
 	return `photo-fix:${scopePath}:${version}`;
 }
@@ -14,10 +14,12 @@ function isOwnPage(pathname, scopePath) {
 // The service worker (SPEC.md section 2, Offline). The build puts PRECACHE
 // (every published file), VERSION and the functions cacheName, staleCaches
 // and isOwnPage (src/lib/precache.ts) ahead of this. On install it caches
-// the files; its own page is fetched from the network first, so a new
-// version is picked up on the next visit, and from the cache when offline.
-// Every other file comes from the cache. Its own folder's older caches are
-// deleted; other folders' (the live app's, a preview's) are left alone.
+// the files, and every file, the page included, comes from that cache, so
+// a page and the files it loads later (the background worker's script) are
+// always one version. A new version installs beside the old one and waits
+// until no page of the old one is open, then takes over and deletes its
+// own folder's older caches; other folders' (the live app's, a preview's)
+// are left alone.
 /* global PRECACHE, VERSION, cacheName, staleCaches, isOwnPage */
 
 // The folder this service worker covers, as a path
@@ -25,13 +27,15 @@ const SCOPE = new URL(self.registration.scope).pathname;
 const CACHE = cacheName(SCOPE, VERSION);
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)));
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(staleCaches(keys, SCOPE, VERSION).map((k) => caches.delete(k))))
+      // On the first visit, take the page that installed it; after that no
+      // page is left open by the time a new version gets here
       .then(() => self.clients.claim()),
   );
 });
@@ -45,13 +49,7 @@ self.addEventListener('fetch', (event) => {
     // build's page: the browser fetches it as usual
     if (!isOwnPage(url.pathname, SCOPE)) return;
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put('./', copy));
-          return response;
-        })
-        .catch(() => caches.open(CACHE).then((cache) => cache.match('./', { ignoreSearch: true }))),
+      caches.open(CACHE).then((cache) => cache.match('./', { ignoreSearch: true })).then((hit) => hit || fetch(request)),
     );
     return;
   }
