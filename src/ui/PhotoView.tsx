@@ -2,9 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useShortcut } from '../hooks/useShortcut';
 import { applyCorrection, buildTables, type Tables } from '../lib/correction';
 import { HOLD_MS, NO_GESTURE, gestureStep, type GestureEvent, type GestureState } from '../lib/gesture';
+import { tapOnPhoto, viewAfter } from '../lib/view-gestures';
 import { rotatedSize, rotationTransform } from '../lib/rotation';
 import {
-  FIT, PRESETS, clampView, detailSize, needsDetail, panBy, presetZoom, scaleOf, toPhoto, visibleFractions, visibleRegion,
+  FIT, PRESETS, clampView, detailSize, needsDetail, panBy, presetZoom, scaleOf, visibleFractions, visibleRegion,
   zoomAt, type Size, type View,
 } from '../lib/view';
 import { regionOf, type Region } from '../detail';
@@ -186,9 +187,12 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
   const viewNow = useRef(view);
   viewNow.current = view;
 
+  // What gestureStep's answers do here: the hold timer and the callbacks;
+  // what they do to the view is viewAfter's (lib/view-gestures.ts)
   const feed = (event: GestureEvent) => {
     const step = gestureStep(gesture.current, event);
     gesture.current = step.state;
+    const c = { area, photo: turned, pixelRatio };
     for (const action of step.actions) {
       switch (action.type) {
         case 'start-hold-timer':
@@ -199,33 +203,22 @@ export default function PhotoView({ photo, comparing, armed, onTap, onHold }: {
           clearTimeout(holdTimer.current);
           break;
         case 'hold-start':
-          onHold(true);
-          break;
         case 'hold-end':
-          onHold(false);
-          break;
-        case 'drag':
-          setView((v) => panBy(v, action.dx, action.dy, area, turned, pixelRatio));
+          onHold(action.type === 'hold-start');
           break;
         case 'pinch-start':
           pinchFrom.current = viewNow.current;
           break;
-        case 'pinch': {
-          const from = pinchFrom.current;
-          const zoomed = zoomAt(from, from.zoom * action.scale, action.x, action.y, area, turned, pixelRatio);
-          setView(panBy(zoomed, action.dx, action.dy, area, turned, pixelRatio));
-          break;
-        }
         case 'tap': {
-          // The eyedropper: where on the photo, if on it at all
-          const [u, v] = toPhoto(viewNow.current, action.x, action.y, area, turned);
-          if (u >= 0 && u <= 1 && v >= 0 && v <= 1) onTap(u, v);
+          // The eyedropper, unless the tap landed in the margin
+          const at = tapOnPhoto(action.x, action.y, viewNow.current, c);
+          if (at) onTap(at[0], at[1]);
           break;
         }
-        case 'double-tap':
-          // In to 2x around the point, or back to Fit
-          setView((v) => (v.zoom > 1.01 ? FIT : zoomAt(v, 2, action.x, action.y, area, turned, pixelRatio)));
-          break;
+        default:
+          // A drag, a pinch or a double-tap. Each drag is added to the view
+          // as it is now, which may be newer than the last render.
+          setView((v) => viewAfter(action, v, pinchFrom.current, c));
       }
     }
   };
