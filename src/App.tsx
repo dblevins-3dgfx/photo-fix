@@ -1,6 +1,7 @@
 import { ImagePlus, Settings as Gear } from 'lucide-react';
 import { useCallback, useEffect, useReducer, useState } from 'react';
 import { useEyedropper } from './hooks/useEyedropper';
+import { releaseOriginal } from './detail';
 import { useOpenPhotos } from './hooks/useOpenPhotos';
 import { useSaving } from './hooks/useSaving';
 import { useShortcut } from './hooks/useShortcut';
@@ -70,6 +71,10 @@ export default function App() {
       document.removeEventListener('visibilitychange', hidden);
     };
   }, []);
+
+  // A closed photo's decoded original, kept for zooming, goes with it
+  const openIds = state.photos.map((p) => p.id).join(',');
+  useEffect(() => releaseOriginal(openIds ? openIds.split(',').map(Number) : []), [openIds]);
 
   const change = (s: Partial<Adjustments>) => dispatch({ type: 'change', settings: s });
 

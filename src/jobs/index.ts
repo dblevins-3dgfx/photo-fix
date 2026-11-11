@@ -1,12 +1,13 @@
 // The Web Worker's jobs, by name: work on the original at full size, off
 // the screen's thread. A new job is a file of its own and a line here.
 
-import { regionJob } from './region-job';
+import { regionJob, releaseJob } from './region-job';
 import { saveJob } from './save-job';
 
 export const jobs = {
   save: saveJob,
   region: regionJob,
+  release: releaseJob,
 };
 
 export type Jobs = typeof jobs;

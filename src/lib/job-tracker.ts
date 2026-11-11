@@ -7,7 +7,8 @@
 // How long a job may take before it counts as stuck, in milliseconds. A
 // save renders the whole scan: far longer than a large scan takes on a
 // Chromebook or an iPhone. A region is a part of it, for the screen.
-export const TIME_LIMIT_MS = { save: 3 * 60_000, region: 60_000 } as const;
+// Letting go of the kept original waits behind any region asked for.
+export const TIME_LIMIT_MS = { save: 3 * 60_000, region: 60_000, release: 60_000 } as const;
 
 export const STOPPED = 'The background worker stopped';
 export const TIMED_OUT = 'The background worker took too long';

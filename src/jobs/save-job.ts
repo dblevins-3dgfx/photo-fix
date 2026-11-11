@@ -56,6 +56,11 @@ const addMetadata = async (blob: Blob) => blob;
 
 export async function saveJob(r: SaveRequest): Promise<{ result: Rendered<Blob> }> {
   const { canvas, size } = await render(r);
-  const blob = await addMetadata(await encode(canvas, r.quality));
+  const jpeg = await encode(canvas, r.quality);
+  // Its pixels go now, not when the worker next tidies up, so the next
+  // photo of a Save all has the memory
+  canvas.width = 0;
+  canvas.height = 0;
+  const blob = await addMetadata(jpeg);
   return { result: { blob, ...size } };
 }
