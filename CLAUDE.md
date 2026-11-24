@@ -1,3 +1,5 @@
+See [AGENTS.md](AGENTS.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for the workflow, gotchas and open work.
+
 # Keep SPEC.md in step with the code
 
 `SPEC.md` describes Photo Fix as it is implemented. Any change a user can see, or that changes what is stored (opening photos, the corrections, saving, the screen, the settings kept in the browser, installing and offline use), updates `SPEC.md` in the same pull request. The PR description names the spec sections that changed, or says why none needed to.
