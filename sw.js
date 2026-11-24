@@ -1,5 +1,5 @@
-const PRECACHE = ["./","./apple-touch-icon.png","./assets/index-8XJUhZ6N.css","./assets/index-ckUjOadB.js","./assets/worker-hYUzyvgO.js","./icon-192.png","./icon-512.png","./icon.svg","./manifest.webmanifest"];
-const VERSION = "a1865p";
+const PRECACHE = ["./","./apple-touch-icon.png","./assets/index-BWGylONd.css","./assets/index-DfHTlPCW.js","./assets/worker-hYUzyvgO.js","./icon-192.png","./icon-512.png","./icon.svg","./manifest.webmanifest"];
+const VERSION = "1jw1l09";
 function cacheName(scopePath, version) {
 	return `photo-fix:${scopePath}:${version}`;
 }
